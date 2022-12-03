@@ -1,4 +1,3 @@
-import pickle
 from functools import cache
 from typing import Optional, Tuple, List, Set, Generator
 from math import cos, sin, tan, radians, sqrt
@@ -917,331 +916,151 @@ real_data = """--- scanner 0 ---
 
 
 class Scanner:
-    def __init__(
-            self,
-            scanner_id: int,
-            pos: Tuple[int, int, int] = (0, 0, 0),
-            orientation: Tuple[int, int, int] = (0, 0, 0),
-            beacons: Optional[List[Tuple[int, int, int]]] = None
-    ):
-        self.scanner_id: int = scanner_id
-        self.pos: Tuple[int, int, int] = pos  # x, y, z
-        self.orientation: Tuple[int, int, int] = orientation  # pitch, yaw, roll
-        self.beacons: List[Tuple[int, int, int]] = []
-        if beacons is not None:
-            self.beacons = beacons
+    def __init__(self, _id: int, beacon_coords: List[Tuple[int, int, int]]):
+        self.id: int = _id
+        self.beacon_coords: List[Tuple[int, int, int]] = beacon_coords
 
-        self.neighbours: List[Scanner] = []
-        self.updated = False
+        self.pos: Optional[Tuple[int, int, int]] = None
+        self.facing_direction: Optional[int] = None
+        self.facing_rotation: Optional[int] = None
 
-    def get_transformed_beacons(self) -> Set[Tuple[int, int, int]]:
-        """
-        Returns the beacon points for this Scanner offset
-        assuming the pos and orientation of the Scanner is correct.
-        """
-        return set(transform_points(self.beacons, self.pos + self.orientation))
-
-    def get_all_beacons(self) -> Set[Tuple[int, int, int]]:
-        self.updated = True
-        all_beacons = set(self.get_transformed_beacons())
-        for n in self.neighbours:
-            if not n.updated:
-                all_beacons.update(n.get_all_beacons())
-        return all_beacons
-
-    def reset_update_flags(self):
-        if self.updated:
-            self.updated = False
-            for n in self.neighbours:
-                n.reset_update_flags()
-
-    def __repr__(self):
-        return f"Scanner(scanner_id={self.scanner_id}, pos={self.pos})"
+    @property
+    def has_orientation(self) -> bool:
+        return self.pos is not None and self.facing_direction is not None and self.facing_rotation is not None
 
 
-def multiply_matrices(
-        matrix: Tuple[Tuple[int, int, int], Tuple[int, int, int], Tuple[int, int, int]],
-        coords: Tuple[int, int, int]
-) -> Tuple[int, int, int]:
-    res = (
-        sum([a * b for a, b in zip(matrix[0], coords)]),
-        sum([a * b for a, b in zip(matrix[1], coords)]),
-        sum([a * b for a, b in zip(matrix[2], coords)])
-    )
-    return res
+def load_scanners(data) -> List[Scanner]:
+    scanners = []
+    for scanner_text in data.split("\n\n"):
+        lines = [line.strip() for line in scanner_text.strip().split("\n")]
 
+        new_id = int(lines[0].strip("- ").split(" ")[1])
 
-def transform_point(
-        coord: Tuple[int, int, int],
-        transform: Tuple[int, int, int, int, int, int],
-        # reverse=False
-) -> Tuple[int, int, int]:
-    """
-    :param coord:
-    :param transform: 0: x, 1: y, 2: z, 3: pitch, 4: yaw, 5: roll
-    """
-    x, y, z = coord
-    t_x, t_y, t_z, pitch, yaw, roll = transform
-    # if reverse:
-    #     t_x, t_y, t_z, pitch, yaw, roll = -t_x, -t_y, -t_z, -pitch, -yaw, -roll
+        new_coords: List[Tuple[int, int, int]] = []
+        for coord_line in lines[1:]:
+            parts = [int(c) for c in coord_line.split(",")]
+            new_coords.append((parts[0], parts[1], parts[2]))
 
-    # Define Matrices
-    # Rotate around x-axis.
-    x_matrix = (
-        (1, 0, 0),
-        (0, round(cos(radians(pitch))), round(-sin(radians(pitch)))),
-        (0, round(sin(radians(pitch))), round(cos(radians(pitch))))
-    )
-    # Rotate around y-axis.
-    y_matrix = (
-        (round(cos(radians(yaw))), 0, round(sin(radians(yaw)))),
-        (0, 1, 0),
-        (round(-sin(radians(yaw))), 0, round(cos(radians(yaw))))
-    )
-    # Rotate around z-axis.
-    z_matrix = (
-        (round(cos(radians(roll))), round(-sin(radians(roll))), 0),
-        (round(sin(radians(roll))), round(cos(radians(roll))), 0),
-        (0, 0, 1)
-    )
+        new_scanner = Scanner(
+            new_id,
+            new_coords
+        )
 
-    x, y, z = multiply_matrices(x_matrix, (x, y, z))
-    x, y, z = multiply_matrices(y_matrix, (x, y, z))
-    x, y, z = multiply_matrices(z_matrix, (x, y, z))
-
-    return x + t_x, y + t_y, z + t_z
-
-
-def invert_transform(transform: Tuple[int, int, int, int, int, int]) -> Tuple[int, int, int, int, int, int]:
-    t_x, t_y, t_z, pitch, yaw, roll = transform
-    t_x, t_y, t_z, pitch, yaw, roll = -t_x, -t_y, -t_z, -roll, -yaw, -pitch
-    return t_x, t_y, t_z, pitch, yaw, roll
-
-
-def transform_points(
-        coords: List[Tuple[int, int, int]],
-        transform: Tuple[int, int, int, int, int, int]
-) -> List[Tuple[int, int, int]]:
-    return [transform_point(coord, transform) for coord in coords]
-
-
-def get_translation(coord1: Tuple[int, int, int], coord2: Tuple[int, int, int]) -> Tuple[int, int, int]:
-    """Returns the translation required to move coord2 on to coord1"""
-    return coord1[0] - coord2[0], coord1[1] - coord2[1], coord1[2] - coord2[2]
-
-
-def load_scanners(data: str) -> List[Scanner]:
-    scanner_strings = data.split("\n\n")
-    scanners: List[Scanner] = []
-    for scanner_string in scanner_strings:
-        scanner_string_lines = scanner_string.split("\n")
-        scanner_id = int(scanner_string_lines[0].strip(" -").split(" ")[1])
-        beacons: List[Tuple[int, int, int]] = []
-        for beacon_string in scanner_string_lines[1:]:
-            x_str, y_str, z_str = beacon_string.split(",")
-            new_beacon = (int(x_str), int(y_str), int(z_str))
-            beacons.append(new_beacon)
-        scanners.append(Scanner(scanner_id, beacons=beacons))
+        scanners.append(new_scanner)
     return scanners
 
 
 @cache
-def point_distance(point1: Tuple[int, int, int], point2: Tuple[int, int, int]):
-    return sqrt(((point2[0]-point1[0])**2)+((point2[1]-point1[1])**2)+((point2[2]-point1[2])**2))
+def rotate_point(
+        coord: Tuple[int, int, int],
+        direction: int,
+        rotation: int
+) -> Tuple[int, int, int]:
+    x, y, z = coord
+
+    match direction:
+        case 0:
+            pass
+        case 1:
+            x, z = -z, x
+        case 2:
+            x, z = -x, -z
+        case 3:
+            x, z = z, -x
+        case 4:
+            y, z = z, -y
+        case 5:
+            y, z = -z, y
+
+    match rotation:
+        case 0:
+            pass
+        case 1 | 90 | -270:
+            x, y = y, -x
+        case 2 | 180 | -180:
+            x, y, = -x, -y
+        case 3 | 270 | -90:
+            x, y = -y, x
+
+    return x, y, z
 
 
-def furthest_points_first(points: Set[Tuple[int, int, int]]) -> Generator[Tuple[int, int, int], None, None]:
-    remaining_points = set(points)
-    while len(remaining_points) > 0:
-        furthest_point = (0, 0, 0)
-        furthest_distance = 0
-        for point in remaining_points:
-            if (new_dist := point_distance((0, 0, 0), point)) > furthest_distance:
-                furthest_point = point
-                furthest_distance = new_dist
-        remaining_points.remove(furthest_point)
-        yield furthest_point
+def get_coord_difference(coord1: Tuple[int, int, int], coord2: Tuple[int, int, int]) -> Tuple[int, int, int]:
+    return coord2[0] - coord1[0], coord2[1] - coord1[1], coord2[2] - coord1[2]
+
+
+def rotate_cloud(
+        points: List[Tuple[int, int, int]],
+        direction: int,
+        rotation: int
+):
+    return [rotate_point(p, direction, rotation) for p in points]
+
+
+def translate_cloud(
+        points: List[Tuple[int, int, int]],
+        translation: Tuple[int, int, int]
+):
+    new_points = []
+    for p in points:
+        new_points.append((p[0] + translation[0], p[1] + translation[1], p[2], translation[2]))
+    return new_points
 
 
 def main():
-    global test_data, real_data
-    data = test_data
-    scanners = load_scanners(data)
+    un_located_scanners: List[Scanner] = load_scanners(test_data)
+    located_scanners: List[Scanner] = []
+    master_cloud: List[Tuple[int, int, int]] = []
 
-    orientations = (
-        (0, 0, 0),
-        (0, 0, 90),
-        (0, 0, 180),
-        (0, 0, 270),
-        (0, 90, 0),
-        (90, 90, 0),
-        (180, 90, 0),
-        (270, 90, 0),
-        (0, 180, 0),
-        (0, 180, 90),
-        (0, 180, 180),
-        (0, 180, 270),
-        (0, 270, 0),
-        (90, 270, 0),
-        (180, 270, 0),
-        (270, 270, 0),
-        (90, 0, 0),
-        (90, 90, 0),
-        (90, 180, 0),
-        (90, 270, 0),
-        (270, 0, 0),
-        (270, 90, 0),
-        (270, 180, 0),
-        (270, 270, 0)
-    )
+    subject_scanner: Scanner = un_located_scanners.pop(0)
+    for coord in subject_scanner.beacon_coords:
+        master_cloud.append(coord)
+    located_scanners.append(subject_scanner)
 
-    """
-    done_scanners: List[Scanner]  = [scanners.pop(0)]
-    global_map = set(done_scanners[0].beacons)
+    while len(un_located_scanners) > 0:
+        subject_scanner = un_located_scanners.pop(0)
 
-    while len(scanners) > 0:
-        newly_done = []
-        ordered_points = list(furthest_points_first(global_map))
-        for scanner in scanners:
-            matched = False
-            for orientation in orientations:
-                test_beacons = scanner.get_translated_beacons((0, 0, 0), orientation)
-                for test_beacon in test_beacons:
-                    for global_beacon in ordered_points:
-                        translation = get_translation(global_beacon, test_beacon)
-                        translated_rotated_beacons = transform_points(test_beacons, translation + (0, 0, 0))
-                        translated_rotated_beacons_set = set(translated_rotated_beacons)
-                        overlap = len(global_map.intersection(translated_rotated_beacons_set))
-                        if overlap >= 12:
-                            matched = True
-                            global_map.update(translated_rotated_beacons_set)
-                            scanner.pos = translation
-                            scanner.orientation = orientation
-                            newly_done.append(scanner)
-                            done_scanners.append(scanner)
-                        if matched:
+        placed = False
+        for direction in range(0, 6):
+            for rotation in range(0, 4):
+                rotated_points = rotate_cloud(subject_scanner.beacon_coords, direction, rotation)
+
+                for root_point in master_cloud:
+                    for test_point in rotated_points:
+                        offset = get_coord_difference(test_point, root_point)
+                        translated_points = translate_cloud(rotated_points, offset)
+
+                        match_count = 0
+                        for check_point in translated_points:
+                            if check_point in master_cloud:
+                                match_count += 1
+
+                        if match_count >= 12:
+                            placed = True
+                            subject_scanner.pos = offset
+                            subject_scanner.facing_direction = direction
+                            subject_scanner.facing_rotation = rotation
+
+                        if placed:
                             break
-                    if matched:
+                    if placed:
                         break
-                if matched:
+                if placed:
                     break
-
-        if len(newly_done) == 0:
-            print("Failed to match any new scanners.")
-            break
-
-        for s in newly_done:
-            print(f"Matched Scanner {s.scanner_id}, {len(global_map)} points")
-            scanners.remove(s)
-    """
-    """
-    for scanner in scanners:
-        print(f"Looking at scanner {scanner.scanner_id}")
-        if len(scanner.neighbours) > 0:
-            print(f" - Already has {len(scanner.neighbours)} neighbours")
-        for possible_neighbour in scanners:
-            if possible_neighbour is scanner:
-                continue
-            if possible_neighbour in [ns[0] for ns in scanner.neighbours]:
-                print(f" - Scanner {possible_neighbour.scanner_id} is already a neighbour")
-                continue
-
-            print(f" - Looking at possible neighbour {possible_neighbour.scanner_id}")
-
-            matched = False
-            for orientation in orientations:
-                for root_beacon in scanner.beacons:
-                    test_beacons = transform_points(possible_neighbour.beacons, (0, 0, 0) + orientation)
-                    for test_beacon in test_beacons:
-                        translation = get_translation(root_beacon, test_beacon)
-                        translated_rotated_beacons = transform_points(test_beacons, translation + (0, 0, 0))
-                        translated_rotated_beacons_set = set(translated_rotated_beacons)
-                        overlap = len(set(scanner.beacons).intersection(translated_rotated_beacons_set))
-                        if overlap >= 12:
-                            scanner.neighbours.append((possible_neighbour, translation + orientation))
-                            possible_neighbour.neighbours.append((scanner, invert_transform(translation + orientation)))
-                            matched = True
-                            break
-                    if matched:
-                        break
-                if matched:
-                    break
-
-        print(f"Found {len(scanner.neighbours)} scanners for scanner {scanner.scanner_id} ({[s[0].scanner_id for s in scanner.neighbours]})")
-    """
-
-    global_map = set(scanners[0].beacons)
-    placed = [scanners.pop(0)]
-    fail_count = 0
-    while len(scanners) > 0:
-        newly_placed = []
-        for scanner in scanners:
-            print(f"Placing scanner {scanner.scanner_id}")
-            matched = False
-            for placed_scanner in placed:
-                print(f" - Looking at scanner {placed_scanner.scanner_id}")
-                for orientation in orientations:
-                    scanner.pos = (0, 0, 0)
-                    scanner.orientation = orientation
-                    rotated_scanner_beacons = scanner.get_transformed_beacons()
-                    # print(f"  - Checking orientation {orientation}")
-                    for root_beacon in placed_scanner.get_transformed_beacons():
-                        for test_beacon in rotated_scanner_beacons:
-                            translation = get_translation(root_beacon, test_beacon)
-                            scanner.pos = translation
-                            translated_rotated_beacons = scanner.get_transformed_beacons()
-                            translated_rotated_beacons_set = set(translated_rotated_beacons)
-                            overlap = len(set(placed_scanner.beacons).intersection(translated_rotated_beacons_set))
-                            if overlap >= 12:
-                                placed.append(scanner)
-                                scanner.neighbours.append(placed_scanner)
-                                placed_scanner.neighbours.append(scanner)
-                                newly_placed.append(scanner)
-                                global_map.update(scanner.get_transformed_beacons())
-                                matched = True
-                                break
-                        if matched:
-                            break
-                    if matched:
-                        break
-                if matched:
-                    break
-            if matched:
+            if placed:
                 break
-        if len(newly_placed) == 0:
-            print("Could not place any new scanners.")
-            fail_count += 1
-            if fail_count > 1:
-                print("Packing it in")
-                break
+
+        if placed:
+            located_scanners.append(subject_scanner)
         else:
-            fail_count = 0
-
-        for np in newly_placed:
-            scanners.remove(np)
-
-    return placed, scanners, global_map
+            un_located_scanners.append(subject_scanner)
 
 
-def resolve():
-    with open("../test_scanners.pickle", "br") as fh:
-        scanners: List[Scanner] = pickle.load(fh)
 
-    for scanner in scanners:
-        if scanner.scanner_id == 0:
-            root = scanner
-            break
-    else:
-        raise Exception("Failed to find root")
 
-    for s in scanners:
-        s.updated = False
 
-    return root
+
 
 
 if __name__ == '__main__':
-    pl, sc, gm = main()
-    #rs = resolve()
-    #print(len(rs.get_all_beacons()))
-    pass
+    main()
