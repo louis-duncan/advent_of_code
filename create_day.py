@@ -8,12 +8,19 @@ import webbrowser
 
 def main():
     today = datetime.date.today()
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--day", type=int, default=today.day)
     parser.add_argument("--year", type=int, default=today.year)
     args = parser.parse_args()
 
-    day_dir = Path(f"{args.year}/day_{args.day:0>2d}")
+    if args.year == today.year and today.month != 12:
+        given = input("Not currently in AoC period.\nEnter DAY YEAR or re-run with args: ")
+        day, year = [int(p) for p in given.split(" ")]
+    else:
+        day, year = args.day, args.month
+
+    day_dir = Path(f"{year}/day_{day:0>2d}")
     try:
         day_dir.mkdir(exist_ok=False, parents=True)
     except FileExistsError:
@@ -21,10 +28,10 @@ def main():
         exit()
 
     template_path = Path("day_template.py")
-    day_script_path = day_dir / f"day_{args.day:0>2d}.py"
+    day_script_path = day_dir / f"day_{day:0>2d}.py"
     day_script_path.write_bytes(template_path.read_bytes())
 
-    day_url = f"https://adventofcode.com/{args.year}/day/{args.day}"
+    day_url = f"https://adventofcode.com/{year}/day/{day}"
     input_url = day_url + "/input"
     with open("session_token.txt", "r") as fh:
         token = fh.read().strip()

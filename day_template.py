@@ -4,7 +4,7 @@ from pathlib import Path
 def raw_input(input_path: Path = Path("input.txt")) -> str:
     with open(input_path, "r") as fh:
         data = fh.read()
-    return data
+    return data.strip()
 
 
 def main():
