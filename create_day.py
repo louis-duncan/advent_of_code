@@ -27,11 +27,16 @@ def main():
         print("Day dir already exists, exiting.")
         exit()
 
+    day_url = f"https://adventofcode.com/{year}/day/{day}"
+
     template_path = Path("day_template.py")
     day_script_path = day_dir / f"day_{day:0>2d}.py"
-    day_script_path.write_bytes(template_path.read_bytes())
+    with open(day_script_path, "w") as out_stream:
+        with open(template_path, "r") as in_stream:
+            template_text = in_stream.read()
+            template_text = template_text.replace("{DAY_LINK}", day_url)
+            out_stream.write(template_text)
 
-    day_url = f"https://adventofcode.com/{year}/day/{day}"
     input_url = day_url + "/input"
     with open("session_token.txt", "r") as fh:
         token = fh.read().strip()
