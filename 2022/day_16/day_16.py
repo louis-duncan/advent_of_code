@@ -1,7 +1,10 @@
+import itertools
 import re
+from functools import cache
 from pathlib import Path
-from typing import Union, Iterator, Optional, Type, Any
+from typing import Union, Iterator, Optional, Type, Any, Iterable
 from math import inf
+
 
 """
 https://adventofcode.com/2022/day/16
@@ -22,7 +25,25 @@ def input_lines(input_path: Path = Path("input.txt"), convert_type: Optional[Typ
             yield convert_type(line.strip())
 
 
-def calc_total_release
+@cache
+def calc_total_release(
+        start_node: str,
+        node_distances: dict[str, dict[str, int]],
+        node_rates: dict[str, int],
+        order: Iterable[str],
+        time: int) -> int:
+    total = 0
+    time_remaining = time
+    current_pos = start_node
+    for valve in order:
+        time_remaining -= node_distances[current_pos][valve]
+        time_remaining -= 1  # -1 for valve opening time
+        total += time_remaining * node_rates[valve]
+        current_pos = valve
+        if time_remaining <= 0:
+            break
+
+    return total
 
 
 def part_1() -> Union[int, str]:
@@ -33,7 +54,7 @@ def part_1() -> Union[int, str]:
     for line in input_lines(input_path=Path("test_input.txt")):
         name = re.search(r"(\w{2})(?= has)", line).group()
         connections = re.findall(r"(\w{2})(?=,|$)", line)
-        rate = re.search(r"(\d+)(?=;)", line).group()
+        rate = int(re.search(r"(\d+)(?=;)", line).group())
         node_connections[name] = connections
         node_rates[name] = rate
 
@@ -64,7 +85,40 @@ def part_1() -> Union[int, str]:
                 break
         node_distances[root] = dict(distances)
 
-    pass
+    viable_nodes = [n for n in node_rates if node_rates[n]]
+
+    order: tuple[str, ...]
+    final_order = []
+    remaining = list(viable_nodes)
+
+    while remaining:
+        best_value = 0
+        best_next_node = ""
+        for check in remaining:
+            maybe = calc_total_release(
+                start_node="AA",
+                node_distances=node_distances,
+                node_rates=node_rates,
+                order=final_order + [check],
+                time=30
+            )
+            if maybe > best_value:
+                best_value = maybe
+                best_next_node = check
+        print(f"best next: {repr(best_next_node)}")
+        remaining.remove(best_next_node)
+        final_order.append(best_next_node)
+
+    print(final_order)
+
+    return calc_total_release(
+                start_node="AA",
+                node_distances=node_distances,
+                node_rates=node_rates,
+                order=final_order,
+                time=30
+            )
+
 
 def part_2() -> Union[int, str]:
     ...
