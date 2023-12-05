@@ -1,4 +1,5 @@
 import re
+from math import inf
 from pathlib import Path
 from typing import Union, Iterator, Optional, Type, Any
 
@@ -26,6 +27,15 @@ class Range:
         if self.start <= other.end <= self.end:
             return True
         return False
+
+    def __hash__(self):
+        return hash((self.start, self.size))
+
+    def __eq__(self, other):
+        if isinstance(other, Range):
+            return self.start == other.start and self.size == other.size
+        else:
+            return False
 
     def __repr__(self):
         return f"Range(start={self.start}, end={self.end}, size={self.size})"
@@ -266,16 +276,25 @@ def part_2() -> Union[int, str]:
         mappings[name] = (MappingSet(name, maps))
         ordered_mappings.append(mappings[name])
 
-    current_ranges = list(seed_ranges)
-    for mapping in ordered_mappings:
-        new_ranges: list[Range] = []
-        for current_range in current_ranges:
-            for new_range in mapping.map_range(current_range):
-                new_ranges.append(new_range)
-        collapsed_ranges = collapse_ranges(new_ranges)
-        current_ranges = collapsed_ranges
+    results: dict[Range, list[Range]] = {}
+    for seed_range in seed_ranges:
+        current_ranges = [seed_range]
+        for mapping in ordered_mappings:
+            new_ranges: list[Range] = []
+            for current_range in current_ranges:
+                for new_range in mapping.map_range(current_range):
+                    new_ranges.append(new_range)
+            collapsed_ranges = collapse_ranges(new_ranges)
+            current_ranges = collapsed_ranges
+        results[seed_range] = list(current_ranges)
 
-    return min([r.start for r in current_ranges])
+    lowest = inf
+    for result_ranges in results.values():
+        for result_range in result_ranges:
+            if result_range.start < lowest:
+                lowest = result_range.start
+
+    return lowest
 
 
 if __name__ == "__main__":
