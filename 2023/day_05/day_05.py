@@ -2,6 +2,7 @@ import re
 from math import inf
 from pathlib import Path
 from typing import Union, Iterator, Optional, Type, Any
+import time
 
 """
 https://adventofcode.com/2023/day/5
@@ -9,13 +10,13 @@ https://adventofcode.com/2023/day/5
 
 
 class Range:
-    def __init__(self, start: int, size: int):
+    def __init__(self, start: int, end: int):
         self.start = start
-        self.size = size
+        self.end = end
 
     @property
-    def end(self):
-        return self.start + self.size - 1
+    def size(self):
+        return self.end - (self.start - 1)
 
     def overlaps(self, other: 'Range'):
         if other.start <= self.start <= other.end:
@@ -33,7 +34,7 @@ class Range:
 
     def __eq__(self, other):
         if isinstance(other, Range):
-            return self.start == other.start and self.size == other.size
+            return self.start == other.start and self.end == other.end
         else:
             return False
 
@@ -49,36 +50,62 @@ class Range:
 
         new_start = min(self.start, other.start)
         new_end = max(self.end, other.end)
-        new_size = (new_end - new_start) + 1
 
-        return Range(new_start, new_size)
+        return Range(new_start, new_end)
 
     def __sub__(self, other: 'Range') -> list['Range']:
         if not self.overlaps(other):
             return [self]
-
-        if other.start <= self.start and other.end >= self.end:
-            # other subsumes self, so ranges
+        elif other.start <= self.start and other.end >= self.end:
+            # other subsumes self, so no ranges
             return []
         elif other.start > self.start and other.end < self.end:
             # other is entirely inside self, return two ranges.
-            range_1 = Range(self.start, other.start - self.start)
-            range_2 = Range(other.end + 1, self.end - other.end)
+            range_1 = Range(self.start, other.start - 1)
+            range_2 = Range(other.end + 1, self.end)
             return [range_1, range_2]
         elif other.start > self.start:
             # other starts inside self, but ends after
-            return [Range(self.start, other.start - self.start)]
+            return [Range(self.start, other.start - 1)]
         elif other.end < self.end:
             # other starts outside self, but ends inside
-            return [Range(other.end + 1, self.end - other.end)]
+            return [Range(other.end + 1, self.end)]
 
     def intersect(self, other: 'Range') -> Optional['Range']:
-        if self.overlaps(other):
-            new_start = max(self.start, other.start)
-            new_end = min(self.end, other.end)
-            return Range(new_start, new_end + 1 - new_start)
-        else:
+        if not self.overlaps(other):
             return None
+        if other.start <= self.start and other.end >= self.end:
+            # other subsumes self
+            return self.copy()
+        elif other.start > self.start and other.end < self.end:
+            # other is entirely inside self.
+            return other.copy()
+        elif other.start > self.start:
+            # other starts inside self, but ends after
+            return Range(other.start, self.end)
+        elif other.end < self.end:
+            # other starts outside self, but ends inside
+            return Range(self.start, other.end)
+
+    def difference(self, other: 'Range') -> list['Range']:
+        if not self.overlaps(other):
+            return [self, other]
+        elif other.start <= self.start and other.end >= self.end:
+            # other subsumes self
+            return other - self
+        elif other.start > self.start and other.end < self.end:
+            # other is entirely inside self
+            return self - other
+        else:
+            # partial overlap, get intersection and subtract from both.
+            intersection = self.intersect(other)
+            _part_1 = self - intersection
+            _part_2 = other - intersection
+            assert len(_part_1) == len(_part_2) == 1
+            return [_part_1[0], _part_2[0]]
+
+    def copy(self):
+        return Range(self.start, self.end)
 
 
 class Mapping:
@@ -86,7 +113,7 @@ class Mapping:
         self.start_1 = start_1
         self.start_2 = start_2
         self.size = size
-        self.range_1 = Range(self.start_1, size)
+        self.range_1 = Range(self.start_1, self.start_1 + (size - 1))
 
     def map(self, value: int) -> Optional[int]:
         if not (self.start_1 <= value <= self.start_1 + (self.size - 1)):
@@ -98,18 +125,15 @@ class Mapping:
             return None
         return self.start_1 + (value - self.start_2)
 
-    def map_range(self, value: Range) -> list[Range]:
-        result_ranges = value - self.range_1
+    def map_range(self, value: Range) -> Optional[Range]:
         intersection = self.range_1.intersect(value)
         if intersection is not None:
-            intersection.start = self.start_2
-            result = intersection
-            for i in range(len(result_ranges)):
-                if result_ranges[i].overlaps(result):
-                    result_ranges[i] = result_ranges[i] + result
-            else:
-                result_ranges.append(result)
-        return result_ranges
+            size_before = intersection.size
+            offset = self.start_2 - self.start_1
+            intersection.start += offset
+            intersection.end += offset
+            assert intersection.size == size_before
+        return intersection
 
     def __repr__(self):
         return f"Mapping(start_1={self.start_1}, start_2={self.start_2}, size={self.size})"
@@ -135,11 +159,19 @@ class MappingSet:
         return self.map(value, reverse=True)
 
     def map_range(self, value: Range) -> list[Range]:
-        result_ranges = []
+        mapped_ranges = []
         for mapping in self.maps:
-            for nr in mapping.map_range(value):
-                result_ranges.append(nr)
-        return collapse_ranges(result_ranges)
+            if (new := mapping.map_range(value)) is not None:
+                mapped_ranges.append(new)
+
+        unmapped_ranges = [value]
+        for mapping in self.maps:
+            updated = []
+            for unmapped in unmapped_ranges:
+                updated += unmapped - mapping.range_1
+            unmapped_ranges = updated
+
+        return collapse_ranges(mapped_ranges + unmapped_ranges)
 
     def __repr__(self):
         return f"MappingSet(name={repr(self.name)})"
@@ -255,12 +287,12 @@ def collapse_ranges(ranges: list[Range]) -> list[Range]:
 
 
 def part_2() -> Union[int, str]:
-    input_text = raw_input("test_input.txt")
+    input_text = raw_input("input.txt")
     input_text = input_text.replace("\r", "")
     seed_ranges = []
     seed_numbers = [int(s) for s in re.search(r"(?<=seeds: )(\d+ ?)+", input_text).group().split(" ")]
     for i in range(0, len(seed_numbers), 2):
-        seed_ranges.append(Range(seed_numbers[i], seed_numbers[i + 1]))
+        seed_ranges.append(Range(seed_numbers[i], seed_numbers[i] + (seed_numbers[i + 1] - 1)))
     blocks = re.findall(r"(?<=\n\n).*?(?=\n\n|$)", input_text, flags=re.DOTALL)
 
     mappings: dict[str, MappingSet] = {}
@@ -282,7 +314,8 @@ def part_2() -> Union[int, str]:
         for mapping in ordered_mappings:
             new_ranges: list[Range] = []
             for current_range in current_ranges:
-                for new_range in mapping.map_range(current_range):
+                mapped_ranges = mapping.map_range(current_range)
+                for new_range in mapped_ranges:
                     new_ranges.append(new_range)
             collapsed_ranges = collapse_ranges(new_ranges)
             current_ranges = collapsed_ranges
@@ -298,7 +331,11 @@ def part_2() -> Union[int, str]:
 
 
 if __name__ == "__main__":
-    print("Part 1:", part_1())
-    print()
-    #range_test()
-    print("Part 2:", part_2())
+    p1_start = time.time_ns()
+    part_1_result = part_1()
+    p1_time = (time.time_ns() - p1_start) / 1000000
+    print("Part 1:", part_1(), "took", p1_time, "ms")
+    p2_start = time.time_ns()
+    part_2_result = part_2()
+    p2_time = (time.time_ns() - p2_start) / 1000000
+    print("Part 2:", part_2(), "took", p2_time, "ms")
