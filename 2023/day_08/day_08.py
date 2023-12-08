@@ -1,3 +1,4 @@
+import math
 import re
 from pathlib import Path
 from typing import Union, Iterator, Optional, Type, Any
@@ -81,7 +82,7 @@ def part_1() -> Union[int, str]:
 def part_2() -> Union[int, str]:
     Node.all_nodes.clear()
 
-    lines = list(input_lines("test_input.txt"))
+    lines = list(input_lines("input.txt"))
     for line in lines[2:]:
         node_strs = re.findall(r"\w{3}", line)
         Node.add_node(*node_strs)
@@ -134,21 +135,38 @@ def part_2() -> Union[int, str]:
     start_offsets: list[int] = []
     goal_offsets_from_cycle_start: list[int] = []
     cycle_lengths: list[int] = []
+    cycle_positions: list[int] = []
 
     for cycle in cycles.values():
         all_nodes = cycle['all_nodes']
         start_node = cycle['cycle_start_node']
         goal_node = cycle['goal_node']
-        start_offsets.append(all_nodes.index(start_node))
-        goal_offsets_from_cycle_start.append(all_nodes.index(goal_node) - all_nodes.index(start_node))
-        cycle_lengths.append(len(all_nodes) - all_nodes.index(start_node))
-    pass
 
+        start_offset = all_nodes.index(start_node)
+        goal_offset_from_cycle_start = all_nodes.index(goal_node) - start_offset
+        cycle_length = len(all_nodes) - start_offset
+        start_position = len(all_nodes)
+        for start_position in range(start_position - 1, 0, -1):
+            if all_nodes[start_position] == goal_node:
+                break
+        start_position += 1
 
+        start_offsets.append(start_offset)
+        goal_offsets_from_cycle_start.append(goal_offset_from_cycle_start)
+        cycle_lengths.append(cycle_length)
+        cycle_positions.append(start_position)
 
-    pass
+    lcm = math.lcm(*cycle_lengths)
+    for i in range(len(cycle_positions)):
+        mul = (lcm // cycle_lengths[i]) - 1
+        if mul:
+            cycle_positions[i] += cycle_lengths[i] * mul
 
-    return count
+    while min(cycle_positions) != max(cycle_positions):
+        i = cycle_positions.index(min(cycle_positions))
+        cycle_positions[i] += cycle_lengths[i]
+
+    return cycle_positions[0]
 
 
 if __name__ == "__main__":
