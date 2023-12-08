@@ -6,13 +6,16 @@ from typing import Union, Iterator, Optional, Type, Any
 """
 
 
-def raw_input(input_path: Path = Path("input.txt")) -> str:
+def raw_input(input_path: Union[Path, str] = Path("test_input.txt")) -> str:
     with open(input_path, "r") as fh:
         data = fh.read()
     return data
 
 
-def input_lines(input_path: Path = Path("input.txt"), convert_type: Optional[Type] = None) -> Iterator[Any]:
+def input_lines(
+        input_path: Union[Path, str] = Path("test_input.txt"),
+        convert_type: Optional[Type] = None
+) -> Iterator[Any]:
     for line in raw_input(input_path).strip().split("\n"):
         if convert_type is None:
             yield line.strip()

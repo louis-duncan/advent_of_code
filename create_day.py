@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import re
 from pathlib import Path
 
 import requests
@@ -14,11 +15,16 @@ def main():
     parser.add_argument("--year", type=int, default=today.year)
     args = parser.parse_args()
 
+    assumed_day_dir = Path(f"{args.year}/day_{args.day:0>2d}")
+
     if args.year == today.year and today.month != 12:
         given = input("Not currently in AoC period.\nEnter DAY YEAR or re-run with args: ")
         day, year = [int(p) for p in given.split(" ")]
+    elif assumed_day_dir.exists():
+        given = input("Looks like today already exists.\nEnter DAY YEAR or re-run with args: ")
+        day, year = [int(p) for p in given.split(" ")]
     else:
-        day, year = args.day, args.month
+        day, year = args.day, args.year
 
     day_dir = Path(f"{year}/day_{day:0>2d}")
     try:
@@ -46,6 +52,17 @@ def main():
     day_input_path = day_dir / "input.txt"
     with open(day_input_path, "w") as fh:
         fh.write(input_text)
+
+    day_test_input_path = day_dir / "test_input.txt"
+    day_page_raw = requests.get(day_url, verify=False).text
+    code_blocks = re.findall(r"(?<=<code>).*?(?=</code>)", day_page_raw, flags=re.DOTALL)
+    test_input = ""
+    for c in code_blocks:
+        if c.count("\n") > 4:
+            test_input = c
+            break
+    with open(day_test_input_path, "w") as fh:
+        fh.write(test_input)
 
     webbrowser.open(day_url)
 
