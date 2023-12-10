@@ -1,26 +1,10 @@
-from pathlib import Path
-from typing import Union, Iterator, Optional, Type, Any
+from aoc_utils import *
+
+import pyperclip
 
 """
 {DAY_LINK}
 """
-
-
-def raw_input(input_path: Union[Path, str] = Path("test_input.txt")) -> str:
-    with open(input_path, "r") as fh:
-        data = fh.read()
-    return data
-
-
-def input_lines(
-        input_path: Union[Path, str] = Path("test_input.txt"),
-        convert_type: Optional[Type] = None
-) -> Iterator[Any]:
-    for line in raw_input(input_path).strip().split("\n"):
-        if convert_type is None:
-            yield line.strip()
-        else:
-            yield convert_type(line.strip())
 
 
 def part_1() -> Union[int, str]:
@@ -32,6 +16,13 @@ def part_2() -> Union[int, str]:
 
 
 if __name__ == "__main__":
-    print("Part 1:", part_1())
-    print()
-    print("Part 2:", part_2())
+    part_1_answer = part_1()
+    if part_1_answer is not None:
+        print("Part 1:", part_1())
+        pyperclip.copy(part_1_answer)
+
+    part_2_answer = part_2()
+    if part_2_answer is not None:
+        print()
+        print("Part 2:", part_2())
+        pyperclip.copy(part_2_answer)

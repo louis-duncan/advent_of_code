@@ -1,2 +1,3 @@
 session_token.txt
 .idea/
+__pycache__/
