@@ -167,6 +167,53 @@ class Point:
         return f"Point(value={repr(self.value)}, x={self.x}, y={self.y})"
 
 
+class PointAgent(Point):
+    valid_directions = ["N", "E", "S", "W", "U", "D", "L", "R", "0", "1", "2", "3", 0, 1, 2, 3]
+
+    def __init__(self, facing: str, x: int, y: int):
+        if facing not in self.valid_directions:
+            raise ValueError(f"'facing' must be a valid direction in {self.valid_directions}")
+        direction: int = self.valid_directions.index(facing) % 4  # Convert direction str to int
+        super().__init__(direction, x, y)
+
+    def move(self, direction: Union[str, int], distance: int):
+        """Direction can be NESW, UDLR, FB, or 0123"""
+        if isinstance(direction, int) and (0 <= direction <= 3):
+            pass
+        elif direction == "F":
+            direction = self.value
+        elif direction == "B":
+            direction = (self.value + 2) % 4
+        elif direction in self.valid_directions:
+            direction = self.valid_directions.index(direction) % 4
+        else:
+            raise ValueError(f"'direction' must be a valid direction in {self.valid_directions}")
+
+        if direction == 0:
+            self.y -= 1
+        elif direction == 1:
+            self.x += 1
+        elif direction == 2:
+            self.y += 1
+        elif direction == 3:
+            self.x -= 1
+        else:
+            raise ValueError(f"Tried to move in an invalid direction '{direction}'")
+
+    def turn(self, direction: Union[str, int]):
+        """Direction should be L/R or +- increments"""
+        if direction == "R":
+            amount = 1
+        elif direction == "L":
+            amount = -1
+        elif isinstance(direction, int):
+            amount = direction
+        else:
+            raise ValueError(f"Tried to turn in an invalid direction '{direction}'")
+
+        self.value = (self.value + amount) % 4
+
+
 class PointCloud:
     def __init__(self, lines: Iterator[str], background="."):
         base = LineGrid(lines, pad=background)
