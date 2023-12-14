@@ -215,11 +215,17 @@ class PointAgent(Point):
 
 
 class PointCloud:
-    def __init__(self, lines: Iterator[str], background="."):
+    def __init__(self, lines: Iterator[str], background=".", point_class: type[Point] = Point):
         base = LineGrid(lines, pad=background)
-        self.points: list[Point] = [
-            Point(base.get(*p), p[0], p[1]) for p in base.find_all_not(".")
+        self.points: list[point_class] = [
+            point_class(base.get(*p), p[0], p[1]) for p in base.find_all_not(".")
         ]
+        self.x_sorted: list[point_class] = list(sorted(self.points, key=lambda p: p.x))
+        self.y_sorted: list[point_class] = list(sorted(self.points, key=lambda p: p.x))
+
+    def get_neighbour(self, p: Point, direction: str):
+        for
+
 
     def expand_11_23(self, scale: int):
         x_ordered: list[Point] = list(sorted(self.points, key=lambda p_: p_.x))
@@ -241,6 +247,12 @@ class PointCloud:
                     p.y += space * (scale - 1)
 
 
+class AgentCloud(PointCloud):
+    def __init__(self, lines: Iterator[str], background="."):
+        self.points: list[PointAgent] = []
+        super().__init__(lines, background, point_class=PointAgent)
+
+
 def manhattan_distance(p1: Union[tuple[int, int], Point], p2: Union[tuple[int, int], Point]) -> int:
     if isinstance(p1, Point):
         x1, y1 = p1.x, p1.y
@@ -251,3 +263,7 @@ def manhattan_distance(p1: Union[tuple[int, int], Point], p2: Union[tuple[int, i
     else:
         x2, y2 = p2
     return abs(x1 - x2) + abs(y1 - y2)
+
+
+def binary_search(x: Any, values: list[Any]):
+    ...
