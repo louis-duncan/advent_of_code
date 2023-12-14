@@ -12,12 +12,29 @@ def raw_input(input_path: Union[Path, str] = Path("test_input.txt")) -> str:
 def input_lines(
         input_path: Union[Path, str] = Path("test_input.txt"),
         convert_type: Optional[Type] = None
-) -> Iterator[Any]:
+) -> Generator[str, None, None]:
     for line in raw_input(input_path).strip().split("\n"):
         if convert_type is None:
             yield line.strip()
         else:
             yield convert_type(line.strip())
+
+
+def grouped_input_lines(
+        input_path: Union[Path, str] = Path("test_input.txt"),
+        convert_type: Optional[Type] = None
+) -> Generator[list[str], None, None]:
+    """Return groups of lines from files with \n separators"""
+    group: list[str] = []
+    for line in input_lines(input_path, convert_type):
+        if line == "":
+            yield group
+            group = []
+        else:
+            group.append(line)
+    if group:
+        yield group
+
 
 
 class LineGrid:
