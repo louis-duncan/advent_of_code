@@ -10,8 +10,11 @@ https://adventofcode.com/2023/day/14
 def part_1() -> Union[int, str]:
     grid = AgentCloud(input_lines("test_input.txt"))
 
-    for p in grid.points:
-        grid.
+    for point in grid.points:
+        if point.value != "O":
+            continue
+
+        all_above = 
 
 
 def part_2() -> Union[int, str]:
