@@ -53,6 +53,40 @@ class TestPointCloud(TestCase):
         self.assertEqual(1, len(found), msg=f"Expected to find one Point, found {len(found)}")
         self.assertIs(test_point, found[0], msg=f"Found Point '{found[0]}' is not the expected Point '{test_point}'")
 
+    def test_get_next_in_direction(self):
+        self.assertEqual(
+            (4, 7), self.cloud.get_next_in_direction(4, 9, "N")[0].x_y,
+            msg="Did not find the expected point in the 'N' direction"
+        )
+        self.assertEqual(
+            (4, 2), self.cloud.get_next_in_direction(0, 2, "E")[0].x_y,
+            msg="Did not find the expected point in the 'E' direction"
+        )
+        self.assertEqual(
+            (4, 2), self.cloud.get_next_in_direction(4, 0, "S")[0].x_y,
+            msg="Did not find the expected point in the 'S' direction"
+        )
+        self.assertEqual(
+            (0, 4), self.cloud.get_next_in_direction(9, 4, "W")[0].x_y,
+            msg="Did not find the expected point in the 'W' direction"
+        )
+
+        self.assertEqual(
+            [], self.cloud.get_next_in_direction(0, 0, "N"),
+            msg="Should have found empty list of neighbours"
+        )
+        self.assertEqual(
+            [], self.cloud.get_next_in_direction(9, 9, "E"),
+            msg="Should have found empty list of neighbours"
+        )
+        self.assertEqual(
+            [], self.cloud.get_next_in_direction(9, 9, "S"),
+            msg="Should have found empty list of neighbours"
+        )
+        self.assertEqual(
+            [], self.cloud.get_next_in_direction(0, 0, "W"),
+            msg="Should have found empty list of neighbours"
+        )
 
 class TestPoint(TestCase):
     def setUp(self) -> None:
@@ -96,3 +130,5 @@ class TestPoint(TestCase):
         self.cloud.add(point_3)
         point_3_neighbours = point_3.get_neighbours("N")
         self.assertEqual(1, len(point_3_neighbours))
+
+

@@ -37,9 +37,9 @@ def tests():
     galaxies_post = set(galax_grid.find_all("#"))
 
     point_cloud = PointCloud(input_lines("input.txt"))
-    point_pre = set([p.coord for p in point_cloud.points])
+    point_pre = set([p.x_y for p in point_cloud.points])
     point_cloud.expand_11_23(2)
-    points_post = set([p.coord for p in point_cloud.points])
+    points_post = set([p.x_y for p in point_cloud.points])
 
     p_diff = points_post.difference(galaxies_post)
     g_diff = galaxies_post.difference(points_post)

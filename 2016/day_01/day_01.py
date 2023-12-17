@@ -58,10 +58,10 @@ def part_2() -> Union[int, str]:
             elif pos.value == "W":
                 pos.x -= 1
 
-            if pos.coord in history:
+            if pos.x_y in history:
                 found = True
                 break
-            history.add(pos.coord)
+            history.add(pos.x_y)
         if found:
             break
 

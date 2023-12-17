@@ -1,8 +1,8 @@
 import bisect
 import logging
+from math import inf
 from pathlib import Path
-from typing import Union, Optional, Type, Iterator, Any, Generator
-
+from typing import Union, Optional, Type, Iterator, Any, Generator, Iterable
 
 VALID_DIRECTIONS = ["N", "E", "S", "W", "U", "D", "L", "R", "0", "1", "2", "3", 0, 1, 2, 3]
 
@@ -41,7 +41,7 @@ def grouped_input_lines(
 
 
 class LineGrid:
-    def __init__(self, lines: Iterator[str], pad: str = "."):
+    def __init__(self, lines: Iterable[str], pad: str = "."):
         self.lines: list[list[str]] = [list(line.strip("\n\r")) for line in lines]
         if self.lines[-1] == "":
             self.lines.pop(-1)
@@ -181,8 +181,12 @@ class Point:
         self.cloud: Optional['PointCloud'] = None
 
     @property
-    def coord(self) -> tuple[int, int]:
+    def x_y(self) -> tuple[int, int]:
         return self.x, self.y
+
+    @property
+    def y_x(self) -> tuple[int, int]:
+        return self.y, self.x
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(value={repr(self.value)}, x={self.x}, y={self.y})"
@@ -191,10 +195,9 @@ class Point:
         if self.cloud is None:
             raise ValueError("Point does not have a cloud")
 
-        if isinstance(direction, str):
-            direction = VALID_DIRECTIONS.index(direction) % 4
+        direction = check_direction(direction)
 
-        n_x, n_y = self.coord
+        n_x, n_y = self.x_y
         if direction == 0:
             n_y -= 1
         elif direction == 1:
@@ -210,9 +213,7 @@ class Point:
 class PointAgent(Point):
     def __init__(self, value: str, x: int, y: int, facing: Union[str, int] = 0):
         super().__init__(value, x, y)
-        if facing not in VALID_DIRECTIONS:
-            raise ValueError(f"'facing' must be a valid direction in {VALID_DIRECTIONS}")
-        self.direction: int = VALID_DIRECTIONS.index(facing) % 4  # Convert direction str to int
+        self.direction: int = check_direction(facing)
 
     def move(self, direction: Union[str, int], distance: int):
         cloud = self.cloud
@@ -221,16 +222,12 @@ class PointAgent(Point):
             self.cloud.remove(self)
 
         """Direction can be NESW, UDLR, FB, or 0123"""
-        if isinstance(direction, int) and (0 <= direction <= 3):
-            pass
-        elif direction == "F":
+        if direction == "F":
             direction = self.value
         elif direction == "B":
             direction = (self.value + 2) % 4
-        elif direction in VALID_DIRECTIONS:
-            direction = VALID_DIRECTIONS.index(direction) % 4
         else:
-            raise ValueError(f"'direction' must be a valid direction in {VALID_DIRECTIONS}")
+            direction = check_direction(direction)
 
         if direction == 0:
             self.y -= distance
@@ -261,8 +258,9 @@ class PointAgent(Point):
 
 
 class PointCloud:
-    def __init__(self, lines: Iterator[str], background=".", point_class: type[Point] = Point):
+    def __init__(self, lines: Iterable[str], background=".", point_class: type[Point] = Point):
         base = LineGrid(lines, pad=background)
+
         self.points: set[point_class] = set([
             point_class(
                 value=base.get(*p),
@@ -270,9 +268,29 @@ class PointCloud:
                 y=p[1]
             ) for p in base.find_all_not(".")
         ])
+        self.background = background
         for point in self.points:
             point.cloud = self
-        self.x_y_sorted: list[point_class] = list(sorted(self.points, key=lambda _p: _p.coord))
+        self.x_y_sorted: list[point_class] = list(sorted(self.points, key=lambda _p: (_p.x, _p.y)))
+        self.y_x_sorted: list[point_class] = list(sorted(self.points, key=lambda _p: (_p.y, _p.x)))
+
+        self.min_x = inf
+        self.max_x = -inf
+        self.min_y = inf
+        self.max_y = -inf
+        for point in self.points:
+            if point.x > self.max_x:
+                self.max_x = point.x
+            if point.y > self.max_y:
+                self.max_y = point.y
+            if point.x < self.min_x:
+                self.min_x = point.x
+            if point.y < self.min_y:
+                self.min_y = point.y
+
+    @property
+    def state_hash(self):
+        return hash(str(self))
 
     def expand_11_23(self, scale: int):
         x_ordered: list[Point] = list(sorted(self.points, key=lambda p_: p_.x))
@@ -293,30 +311,83 @@ class PointCloud:
 
     def add(self, point: Point):
         self.points.add(point)
-        bisect.insort_right(self.x_y_sorted, point, key=lambda _v: _v.coord)
+        bisect.insort_right(self.x_y_sorted, point, key=lambda _v: (_v.x, _v.y))
+        bisect.insort_right(self.y_x_sorted, point, key=lambda _v: (_v.y, _v.x))
         point.cloud = self
 
     def remove(self, point: Point):
         self.points.remove(point)
 
-        start = bisect.bisect_left(self.x_y_sorted, point.coord, key=lambda _p: _p.coord)
-        end = bisect.bisect_right(self.x_y_sorted, point.coord, key=lambda _p: _p.coord)
+        start = bisect.bisect_left(self.x_y_sorted, point.x_y, key=lambda _p: _p.x_y)
+        end = bisect.bisect_right(self.x_y_sorted, point.x_y, key=lambda _p: _p.x_y)
         for i in range(start, end):
             if self.x_y_sorted[i] is point:
                 self.x_y_sorted.pop(i)
                 break
         else:
-            raise ValueError(f"Point '{point}' not present in sorted points list")
+            raise ValueError(f"Point '{point}' not present in x_y_sorted points list")
+
+        start = bisect.bisect_left(self.y_x_sorted, (point.y, point.x), key=lambda _p: (_p.y, _p.x))
+        end = bisect.bisect_right(self.y_x_sorted, (point.y, point.x), key=lambda _p: (_p.y, _p.x))
+        for i in range(start, end):
+            if self.y_x_sorted[i] is point:
+                self.y_x_sorted.pop(i)
+                break
+        else:
+            raise ValueError(f"Point '{point}' not present in y_x_sorted points list")
+
         point.cloud = None
 
-    def get(self, x, y) -> list[Point]:
-        start = bisect.bisect_left(self.x_y_sorted, (x, y), key=lambda _p: _p.coord)
-        end = bisect.bisect_right(self.x_y_sorted, (x, y), key=lambda _p: _p.coord)
+    def get(self, x: int, y: int):
+        start = bisect.bisect_left(self.x_y_sorted, (x, y), key=lambda _p: _p.x_y)
+        end = bisect.bisect_right(self.x_y_sorted, (x, y), key=lambda _p: _p.x_y)
         return self.x_y_sorted[start: end]
 
+    def get_next_in_direction(self, x: int, y: int, direction: Union[str, int]) -> list[Point]:
+        direction = check_direction(direction)
+        # N
+        if direction == 0:
+            end = bisect.bisect_left(self.x_y_sorted, (x, y), key=lambda p: p.x_y)
+            y_of_next_point = self.x_y_sorted[end - 1].y
+            start = bisect.bisect_left(self.x_y_sorted, (x, y_of_next_point), key=lambda p: p.x_y)
+            return self.x_y_sorted[start: end]
+        # E
+        elif direction == 1:
+            start = bisect.bisect_right(self.y_x_sorted, (y, x), key=lambda p: p.y_x)
+            if start >= len(self.y_x_sorted):
+                return []
+            x_of_next_point = self.y_x_sorted[start].x
+            end = bisect.bisect_right(self.y_x_sorted, (y, x_of_next_point), key=lambda p: p.y_x)
+            return self.y_x_sorted[start: end]
+        # S
+        elif direction == 2:
+            start = bisect.bisect_right(self.x_y_sorted, (x, y), key=lambda p: p.x_y)
+            if start >= len(self.x_y_sorted):
+                return []
+            y_of_next_point = self.x_y_sorted[start].y
+            end = bisect.bisect_right(self.x_y_sorted, (x, y_of_next_point), key=lambda p: p.x_y)
+            return self.x_y_sorted[start: end]
+        # W
+        else:
+            end = bisect.bisect_left(self.y_x_sorted, (y, x), key=lambda p: p.y_x)
+            x_of_next_point = self.y_x_sorted[end - 1].x
+            start = bisect.bisect_left(self.y_x_sorted, (y, x_of_next_point), key=lambda p: p.y_x)
+            return self.y_x_sorted[start: end]
+
+    def __str__(self):
+        grid = [[self.background for _ in range(self.min_x, self.max_x + 1)] for _ in range(self.min_y, self.max_y + 1)]
+        for point in self.points:
+            grid[point.y][point.x] = point.value
+        return "\n".join(["".join(line) for line in grid])
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(num_points={len(self.points)})"
 
 class AgentCloud(PointCloud):
     def __init__(self, lines: Iterator[str], background="."):
+        self.points: set[PointAgent] = set()
+        self.x_y_sorted: list[PointAgent] = []
+        self.y_x_sorted: list[PointAgent] = []
         super().__init__(lines, background, point_class=PointAgent)
 
 
@@ -330,3 +401,18 @@ def manhattan_distance(p1: Union[tuple[int, int], Point], p2: Union[tuple[int, i
     else:
         x2, y2 = p2
     return abs(x1 - x2) + abs(y1 - y2)
+
+
+def check_direction(direction: Union[str, int]) -> int:
+    """
+    raises: ValueError if direction is not valid.
+    """
+    if isinstance(direction, int) and 0 <= direction <= 3:
+        return direction
+    else:
+        try:
+            return VALID_DIRECTIONS.index(direction) % 4
+        except IndexError:
+            pass
+
+    raise ValueError(f"Direction '{direction}' is not valid")
