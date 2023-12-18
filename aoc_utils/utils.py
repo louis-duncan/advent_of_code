@@ -42,9 +42,13 @@ def grouped_input_lines(
 
 class BasicGrid:
     def __init__(self, width: int, height: int):
+        self.width = width
+        self.height = height
         self.rows: list[list] = [[None for _ in range(width)] for _ in range(height)]
 
     def get(self, x: int, y: int):
+        if x < 0 or y < 0:
+            return None
         try:
             return self.rows[y][x]
         except IndexError:
@@ -52,6 +56,11 @@ class BasicGrid:
 
     def set(self, value, x: int, y: int):
         self.rows[y][x] = value
+
+    def items(self):
+        for y in range(self.width):
+            for x in range(self.height):
+                yield self.rows[y][x]
 
 
 class LineGrid:
