@@ -40,6 +40,20 @@ def grouped_input_lines(
         yield group
 
 
+class BasicGrid:
+    def __init__(self, width: int, height: int):
+        self.rows: list[list] = [[None for _ in range(width)] for _ in range(height)]
+
+    def get(self, x: int, y: int):
+        try:
+            return self.rows[y][x]
+        except IndexError:
+            return None
+
+    def set(self, value, x: int, y: int):
+        self.rows[y][x] = value
+
+
 class LineGrid:
     def __init__(self, lines: Iterable[str], pad: str = "."):
         self.lines: list[list[str]] = [list(line.strip("\n\r")) for line in lines]

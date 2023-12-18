@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass
 from functools import cache
+from math import prod
 
 from aoc_utils import *
 
@@ -9,6 +10,7 @@ import pyperclip
 """
 https://adventofcode.com/2023/day/15
 """
+
 
 @cache
 def string_hash(string: str) -> int:
@@ -27,8 +29,9 @@ def string_hash(string: str) -> int:
         value %= 256
     return value
 
+
 @dataclass
-class Lense:
+class Lens:
     label: str
     focal_length: int
 
@@ -39,9 +42,9 @@ def part_1() -> Union[int, str]:
 
 
 def part_2() -> Union[int, str]:
-    instructions: list[str] = raw_input("test_input.txt").strip().split(",")
+    instructions: list[str] = raw_input("input.txt").strip().split(",")
 
-    boxes: list[list[Lense]] = [[] for _ in range(256)]
+    boxes: list[list[Lens]] = [[] for _ in range(256)]
 
     for instruction in instructions:
         label, op, value = re.match(r"(\w+)([-=])(\d+)?", instruction).groups()
@@ -74,15 +77,16 @@ def part_2() -> Union[int, str]:
             """
             for i in range(len(boxes[box_i])):
                 if boxes[box_i][i].label == label:
-                    boxes[box_i][i] = Lense(label, value)
+                    boxes[box_i][i] = Lens(label, value)
                     break
             else:
-                boxes[box_i].append(Lense(label, value))
+                boxes[box_i].append(Lens(label, value))
 
     total = 0
-    for box in boxes:
-        for lense in box:
-            total += lense.focal_length
+    for box_i, box in enumerate(boxes):
+        for lens_i, lens in enumerate(box):
+            total += prod([box_i + 1, lens_i + 1, lens.focal_length])
+
     return total
 
 
