@@ -4,7 +4,7 @@ from math import inf
 from pathlib import Path
 from typing import Union, Optional, Type, Iterator, Any, Generator, Iterable
 
-VALID_DIRECTIONS = ["N", "E", "S", "W", "U", "D", "L", "R", "0", "1", "2", "3", 0, 1, 2, 3]
+VALID_DIRECTIONS = ["N", "E", "S", "W", "U", "R", "D", "L", "0", "1", "2", "3", 0, 1, 2, 3]
 
 
 def raw_input(input_path: Union[Path, str] = Path("test_input.txt")) -> str:
@@ -46,7 +46,7 @@ class BasicGrid:
         self.height = height
         self.rows: list[list] = [[None for _ in range(width)] for _ in range(height)]
 
-    def get(self, x: int, y: int):
+    def get(self, x: int, y: int) -> Any:
         if x < 0 or y < 0:
             return None
         try:
@@ -54,10 +54,10 @@ class BasicGrid:
         except IndexError:
             return None
 
-    def set(self, value, x: int, y: int):
+    def set(self, value, x: int, y: int) -> None:
         self.rows[y][x] = value
 
-    def items(self):
+    def items(self) -> Generator[Any, None, None]:
         for y in range(self.width):
             for x in range(self.height):
                 yield self.rows[y][x]
@@ -177,20 +177,44 @@ class LineGrid:
                     found.append((x, y))
         return found
 
+    @classmethod
+    def get_neighbor_coord(cls, x: int, y: int, direction: Union[int, str]) -> tuple[int, int]:
+        direction = check_direction(direction)
+        if direction == 0:
+            y -= 1
+        elif direction == 1:
+            x += 1
+        elif direction == 2:
+            y += 1
+        else:
+            x -= 1
+        return x, y
+
     def get_neighbour(self, x: int, y: int, direction: str, wrap=False) -> tuple[Union[str, int], int, int]:
         """
         Directions: any 1 or 2 char combination of N, W, S, W or U, D, L, R
         returns: neighbour value, x, y
         """
-        if "N" in direction or "U" in direction:
-            y -= 1
-        if "E" in direction or "R" in direction:
-            x += 1
-        if "S" in direction or "D" in direction:
-            y += 1
-        if "W" in direction or "L" in direction:
-            x -= 1
+        x, y = self.get_neighbor_coord(x, y, direction)
         return self.get(x, y, wrap), x, y
+
+    def flood_fill(self, value: str, x: int, y: int) -> int:
+        to_fill = self.get(x, y)
+        count = 0
+        queue: list[tuple[int, int]] = [(x, y), ]
+
+        while len(queue):
+            current = queue.pop(0)
+            try:
+                if self.get(current[0], current[1]) == to_fill:
+                    count += 1
+                    self.set(current[0], current[1], value)
+                    for d in range(0, 4):
+                        queue.append(self.get_neighbor_coord(current[0], current[1], d))
+            except ValueError:
+                pass
+
+        return count
 
     def __str__(self):
         return "\n".join(["".join(line) for line in self.lines])
@@ -281,35 +305,30 @@ class PointAgent(Point):
 
 
 class PointCloud:
-    def __init__(self, lines: Iterable[str], background=".", point_class: type[Point] = Point):
-        base = LineGrid(lines, pad=background)
+    def __init__(self, lines: Optional[Iterable[str]] = None, background=".", point_class: type[Point] = Point):
+        self.points: set[point_class] = set()
+        if lines is not None:
+            base = LineGrid(lines, pad=background)
+            for p in base.find_all_not(background):
+                self.points.add(
+                    point_class(
+                        value=base.get(*p),
+                        x=p[0],
+                        y=p[1]
+                    )
+                )
 
-        self.points: set[point_class] = set([
-            point_class(
-                value=base.get(*p),
-                x=p[0],
-                y=p[1]
-            ) for p in base.find_all_not(".")
-        ])
         self.background = background
         for point in self.points:
             point.cloud = self
         self.x_y_sorted: list[point_class] = list(sorted(self.points, key=lambda _p: (_p.x, _p.y)))
         self.y_x_sorted: list[point_class] = list(sorted(self.points, key=lambda _p: (_p.y, _p.x)))
 
-        self.min_x = inf
-        self.max_x = -inf
-        self.min_y = inf
-        self.max_y = -inf
-        for point in self.points:
-            if point.x > self.max_x:
-                self.max_x = point.x
-            if point.y > self.max_y:
-                self.max_y = point.y
-            if point.x < self.min_x:
-                self.min_x = point.x
-            if point.y < self.min_y:
-                self.min_y = point.y
+        self.min_x = 0
+        self.max_x = 0
+        self.min_y = 0
+        self.max_y = 0
+        self._recalc_min_max()
 
     @property
     def state_hash(self):
@@ -332,13 +351,21 @@ class PointCloud:
                 for p in y_ordered[j:]:
                     p.y += space * (scale - 1)
 
-    def add(self, point: Point):
+    def _recalc_min_max(self) -> None:
+
+        self.min_x = self.x_y_sorted[0].x
+        self.max_x = self.x_y_sorted[-1].x
+        self.min_y = self.y_x_sorted[0].y
+        self.max_y = self.y_x_sorted[-1].y
+
+    def add(self, point: Point) -> None:
         self.points.add(point)
         bisect.insort_right(self.x_y_sorted, point, key=lambda _v: (_v.x, _v.y))
         bisect.insort_right(self.y_x_sorted, point, key=lambda _v: (_v.y, _v.x))
         point.cloud = self
+        self._recalc_min_max()
 
-    def remove(self, point: Point):
+    def remove(self, point: Point) -> None:
         self.points.remove(point)
 
         start = bisect.bisect_left(self.x_y_sorted, point.x_y, key=lambda _p: _p.x_y)
@@ -360,6 +387,7 @@ class PointCloud:
             raise ValueError(f"Point '{point}' not present in y_x_sorted points list")
 
         point.cloud = None
+        self._recalc_min_max()
 
     def get(self, x: int, y: int):
         start = bisect.bisect_left(self.x_y_sorted, (x, y), key=lambda _p: _p.x_y)
@@ -398,9 +426,9 @@ class PointCloud:
             return self.y_x_sorted[start: end]
 
     def __str__(self):
-        grid = [[self.background for _ in range(self.min_x, self.max_x + 1)] for _ in range(self.min_y, self.max_y + 1)]
+        grid = [[self.background for _ in range(self.min_x, self.max_x + 3)] for _ in range(self.min_y, self.max_y + 3)]
         for point in self.points:
-            grid[point.y][point.x] = point.value
+            grid[(point.y - self.min_y) + 1][(point.x - self.min_x) + 1] = point.value
         return "\n".join(["".join(line) for line in grid])
 
     def __repr__(self):
@@ -410,6 +438,7 @@ class AgentCloud(PointCloud):
     def __init__(self, lines: Iterator[str], background="."):
         self.points: set[PointAgent] = set()
         self.x_y_sorted: list[PointAgent] = []
+
         self.y_x_sorted: list[PointAgent] = []
         super().__init__(lines, background, point_class=PointAgent)
 
