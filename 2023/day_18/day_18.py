@@ -8,7 +8,7 @@ https://adventofcode.com/2023/day/18
 
 
 def part_1() -> Union[int, str]:
-    holes = PointCloud(["#"])
+    holes = PointGrid(["#"])
     digger = PointAgent("", 0, 0)
 
     for line in input_lines("input.txt"):

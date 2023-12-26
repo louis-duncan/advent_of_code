@@ -2,7 +2,7 @@ import bisect
 import logging
 from math import inf
 from pathlib import Path
-from typing import Union, Optional, Type, Iterator, Any, Generator, Iterable
+from typing import Union, Optional, Type, Iterator, Any, Generator, Iterable, Callable
 
 VALID_DIRECTIONS = ["N", "E", "S", "W", "U", "R", "D", "L", "0", "1", "2", "3", 0, 1, 2, 3]
 
@@ -225,7 +225,7 @@ class Point:
         self.value = value
         self.x = x
         self.y = y
-        self.cloud: Optional['PointCloud'] = None
+        self.cloud: Optional['PointGrid'] = None
 
     @property
     def x_y(self) -> tuple[int, int]:
@@ -304,7 +304,7 @@ class PointAgent(Point):
         self.value = (self.value + amount) % 4
 
 
-class PointCloud:
+class PointGrid:
     def __init__(self, lines: Optional[Iterable[str]] = None, background=".", point_class: type[Point] = Point):
         self.points: set[point_class] = set()
         if lines is not None:
@@ -434,13 +434,184 @@ class PointCloud:
     def __repr__(self):
         return f"{self.__class__.__name__}(num_points={len(self.points)})"
 
-class AgentCloud(PointCloud):
+class AgentGrid(PointGrid):
     def __init__(self, lines: Iterator[str], background="."):
         self.points: set[PointAgent] = set()
         self.x_y_sorted: list[PointAgent] = []
 
         self.y_x_sorted: list[PointAgent] = []
         super().__init__(lines, background, point_class=PointAgent)
+
+
+class Point3:
+    def __init__(
+            self,
+            x: int,
+            y: int,
+            z:int,
+            cloud: Optional['Point3Cloud'] = None,
+            group: Optional['Point3Group'] = None
+    ):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.cloud = cloud
+        self.group = group
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.x}, {self.y}, {self.z})"
+
+    def move(self, dx: int, dy: int, dz: int, skip_cloud = False):
+        if self.cloud is None or skip_cloud:
+            self.x += dx
+            self.y += dy
+            self.z += dz
+        else:
+            self.cloud.move_point(self, dx, dy, dz)
+
+    @property
+    def pos(self) -> [int, int, int]:
+        return self.x, self.y, self.z
+
+    def get_neighbour(self, direction: tuple[int, int, int]) -> Optional['Point3']:
+        if self.cloud is None:
+            raise ValueError("Point is not part of a cloud")
+
+        if direction.count(0) < 2:
+            raise ValueError("Direction cannot be a compound direction, must only be +/- 1 in one direction")
+
+        potential_neighbour_pos = (
+            self.x + direction[0],
+            self.y + direction[1],
+            self.z + direction[2]
+        )
+
+        return self.cloud.get_point(*potential_neighbour_pos)
+
+
+class Point3Group:
+    def __init__(self, p1: Point3, p2: Point3, cloud: Optional['Point3Cloud'] = None):
+        self.points: list[Point3] = [p1, ]
+        self.cloud = cloud
+
+        done = False
+        while not done:
+            cur = self.points[-1]
+            if cur.x != p2.x:
+                step = sign(p2.x - cur.x)
+                new_pos = (cur.x + step, cur.y, cur.z)
+            elif cur.y != p2.y:
+                step = sign(p2.y - cur.y)
+                new_pos = (cur.x, cur.y + step, cur.z)
+            else:  # cur.z != p2.z
+                step = sign(p2.z - cur.z)
+                new_pos = (cur.x, cur.y, cur.z + step)
+
+            if new_pos == p2.pos:
+                done = True
+                self.points.append(p2)
+            else:
+                self.points.append(Point3(*new_pos))
+
+        for p in self.points:
+            self.cloud.add_point(p)
+            p.group = self
+
+    def __repr__(self):
+        return f"Point3Group(start={self.points[0].pos}, end={self.points[-1].pos})"
+
+    def __hash__(self):
+        return hash((self.points[0].pos, self.points[-1].pos))
+
+    def move(self, dx: int = 0, dy: int = 0, dz: int = 0):
+        for point in self.points:
+            point.move(dx, dy, dz)
+
+    def get_neighbours(self, direction: tuple[int, int, int]) -> list['Point3Group']:
+        neighbours: set[Point3Group] = set()
+        for point in self.points:
+            if new := point.get_neighbour(direction):
+                if new.group is not self:
+                    neighbours.add(new.group)
+        return list(neighbours)
+
+    @property
+    def min_z(self) -> int:
+        return min([p.z for p in self.points])
+
+
+class Point3Cloud:
+    def __init__(self):
+        self.points: set[Point3] = set()
+
+        self.x_y_z_sorted: list[Point3] = []
+        self.z_x_y_sorted: list[Point3] = []
+        self.y_x_z_sorted: list[Point3] = []
+        self.sorted_lists_and_keys: list[tuple[list[Point3], Callable]] = [
+            (self.x_y_z_sorted, lambda p: (p.x, p.y, p.z)),
+            (self.z_x_y_sorted, lambda p: (p.z, p.x, p.y)),
+            (self.y_x_z_sorted, lambda p: (p.y, p.x, p.z))
+        ]
+
+        self.min_x = 0
+        self.max_x = 0
+        self.min_y = 0
+        self.max_y = 0
+        self.min_z = 0
+        self.min_z = 0
+
+    def add_point(self, point: Point3):
+        self.points.add(point)
+        point.cloud = self
+        for sorted_list, key in self.sorted_lists_and_keys:
+            bisect.insort(sorted_list, point, key=key)
+        self._recalc_min_max()
+
+    def remove_point(self, point: Point3):
+        self.points.remove(point)
+        for sorted_list, key in self.sorted_lists_and_keys:
+            start = bisect.bisect_left(sorted_list, key(point), key=key)
+            for i in range(start, len(sorted_list)):
+                if sorted_list[i] is point:
+                    sorted_list.pop(i)
+                    break
+            else:
+                raise ValueError("Point not in the list")
+
+    def _recalc_min_max(self):
+        if len(self.points) == 0:
+            self.min_x = 0
+            self.max_x = 0
+            self.min_y = 0
+            self.max_y = 0
+            self.min_z = 0
+            self.min_z = 0
+        else:
+            self.min_x = self.x_y_z_sorted[0].x
+            self.max_x = self.x_y_z_sorted[-1].x
+            self.min_y = self.y_x_z_sorted[0].y
+            self.max_y = self.y_x_z_sorted[-1].y
+            self.min_z = self.z_x_y_sorted[0].z
+            self.min_z = self.z_x_y_sorted[-1].z
+
+    def move_point(self, point: Point3, dx=0, dy=0, dz=0):
+        self.remove_point(point)
+        point.move(dx, dy , dz, skip_cloud=True)
+        self.add_point(point)
+
+    def get_point(self, x: int, y: int, z: int) -> Optional[Point3]:
+        sorted_list, key = (self.z_x_y_sorted, lambda p: (p.z, p.x, p.y))
+        i = bisect.bisect_left(sorted_list, (z, x, y), key=key)
+        if (i < len(self.z_x_y_sorted)) and (self.z_x_y_sorted[i].pos == (x, y, z)):
+            return self.z_x_y_sorted[i]
+        else:
+            return None
+
+
+def sign(n):
+  if n<0: return -1
+  elif n>0: return 1
+  else: return 0
 
 
 def manhattan_distance(p1: Union[tuple[int, int], Point], p2: Union[tuple[int, int], Point]) -> int:

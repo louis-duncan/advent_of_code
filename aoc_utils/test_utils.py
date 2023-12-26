@@ -1,10 +1,10 @@
 from unittest import TestCase
-from utils import PointCloud, Point
+from utils import PointGrid, Point
 
 
 class TestPointCloud(TestCase):
     def setUp(self) -> None:
-        self.cloud = PointCloud(
+        self.cloud = PointGrid(
             [
                 "#........#",
                 "..........",
@@ -90,7 +90,7 @@ class TestPointCloud(TestCase):
 
 class TestPoint(TestCase):
     def setUp(self) -> None:
-        self.cloud = PointCloud(
+        self.cloud = PointGrid(
             [
                 "#........#",
                 "..........",

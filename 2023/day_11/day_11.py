@@ -36,7 +36,7 @@ def tests():
     galax_grid.expand(2)
     galaxies_post = set(galax_grid.find_all("#"))
 
-    point_cloud = PointCloud(input_lines("input.txt"))
+    point_cloud = PointGrid(input_lines("input.txt"))
     point_pre = set([p.x_y for p in point_cloud.points])
     point_cloud.expand_11_23(2)
     points_post = set([p.x_y for p in point_cloud.points])
@@ -72,7 +72,7 @@ def part_1() -> Union[int, str]:
 
 
 def part_2() -> Union[int, str]:
-    grid = PointCloud(input_lines("input.txt"))
+    grid = PointGrid(input_lines("input.txt"))
     grid.expand_11_23(1_000_000)
     total = 0
     for i in range(len(grid.points)):

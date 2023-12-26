@@ -6,7 +6,7 @@ import pyperclip
 https://adventofcode.com/2023/day/14
 """
 
-def roll(grid: AgentCloud, direction: str):
+def roll(grid: AgentGrid, direction: str):
     if direction == "N":
         point_list = grid.y_x_sorted
     elif direction == "E":
@@ -62,7 +62,7 @@ def roll(grid: AgentCloud, direction: str):
 
 
 def part_1() -> Union[int, str]:
-    grid = AgentCloud(input_lines("input.txt"))
+    grid = AgentGrid(input_lines("input.txt"))
 
     roll(grid, "N")
 
@@ -75,7 +75,7 @@ def part_1() -> Union[int, str]:
 
 
 def part_2() -> Union[int, str]:
-    grid = AgentCloud(input_lines("input.txt"))
+    grid = AgentGrid(input_lines("input.txt"))
 
     directions = "NWSE"
     states: dict[int, int] = {}  # state_hash: step
