@@ -17,7 +17,7 @@ def main():
 
     assumed_day_dir = Path(f"{args.year}/day_{args.day:0>2d}")
 
-    if args.year == today.year and today.month != 12:
+    if args.year == today.year and (today.month != 12 or today.day not in range(1, 26)):
         given = input("Not currently in AoC period.\nEnter DAY YEAR or re-run with args: ")
         day, year = [int(p) for p in given.split(" ")]
     elif assumed_day_dir.exists():
