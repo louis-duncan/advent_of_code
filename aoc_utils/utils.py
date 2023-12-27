@@ -190,11 +190,17 @@ class LineGrid:
             x -= 1
         return x, y
 
-    def get_neighbour(self, x: int, y: int, direction: str, wrap=False) -> tuple[Union[str, int], int, int]:
+    def get_neighbour(
+            self,
+            x: int,
+            y: int,
+            direction: Union[str, int],
+            wrap=False) -> tuple[Union[str, int], int, int]:
         """
         Directions: any 1 or 2 char combination of N, W, S, W or U, D, L, R
         returns: neighbour value, x, y
         """
+        direction = check_direction(direction)
         x, y = self.get_neighbor_coord(x, y, direction)
         return self.get(x, y, wrap), x, y
 
@@ -218,6 +224,11 @@ class LineGrid:
 
     def __str__(self):
         return "\n".join(["".join(line) for line in self.lines])
+
+    def iterate_x_y(self):
+        for y in range(self.height):
+            for x in range(self.width):
+                yield x, y
 
 
 class Point:
@@ -608,6 +619,14 @@ class Point3Cloud:
             return None
 
 
+class Node:
+    def __init__(self):
+        self.connections: dict[Node, int] = {}
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(connections={len(self.connections)})"
+
+
 def sign(n):
   if n<0: return -1
   elif n>0: return 1
@@ -639,3 +658,14 @@ def check_direction(direction: Union[str, int]) -> int:
             pass
 
     raise ValueError(f"Direction '{direction}' is not valid")
+
+
+def get_direction(coord_1: tuple[int, int], coord_2: tuple[int, int]) -> int:
+    if coord_2[0] > coord_1[0]:
+        return 1
+    elif coord_2[1] > coord_1[1]:
+        return 2
+    elif coord_2[0] < coord_1[0]:
+        return 3
+    elif coord_2[1] < coord_1[1]:
+        return 0
