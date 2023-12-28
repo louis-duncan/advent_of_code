@@ -11,14 +11,14 @@ from aoc_utils import *
 https://adventofcode.com/2023/day/23
 """
 
-def get_map(part="part_1") -> [dict[Node], Node, Node]:
+def get_map(part="part_1") -> [dict[NodeWithDistance], NodeWithDistance, NodeWithDistance]:
     line_grid = LineGrid(input_lines("input.txt"))
-    nodes: dict[tuple[int, int], Node] = {}
+    nodes: dict[tuple[int, int], NodeWithDistance] = {}
     start_x = line_grid.get_row(0).index(".")
     end_x = line_grid.get_row(-1).index(".")
     for x, y, in line_grid.iterate_x_y():
         if line_grid.get(x, y) != "#":
-            nodes[(x, y)] = Node()
+            nodes[(x, y)] = NodeWithDistance()
 
     start = nodes[(start_x, 0)]
     end = nodes[(end_x, line_grid.height - 1)]
@@ -45,12 +45,12 @@ def get_map(part="part_1") -> [dict[Node], Node, Node]:
     return nodes, start, end
 
 
-def get_path_end(start_node: Node, next_node: Node) -> [Node, int]:
+def get_path_end(start_node: NodeWithDistance, next_node: NodeWithDistance) -> [NodeWithDistance, int]:
     prev = start_node
     current = next_node
     distance = start_node.connections[next_node]
     while len(current.connections) == 2:
-        pos_connections: dict[Node, int] = current.connections.copy()
+        pos_connections: dict[NodeWithDistance, int] = current.connections.copy()
         pos_connections.pop(prev)
 
         assert len(pos_connections) == 1
@@ -62,23 +62,23 @@ def get_path_end(start_node: Node, next_node: Node) -> [Node, int]:
     return current, distance
 
 
-def simplify_map(nodes: dict[tuple[int, int], Node]):
+def simplify_map(nodes: dict[tuple[int, int], NodeWithDistance]):
     for _, node in nodes.items():
         if len(node.connections) != 2:
-            new_connections: dict[Node, int] = {}
+            new_connections: dict[NodeWithDistance, int] = {}
             for connection_node, connection_dist in node.connections.items():
                 new_node, new_distance = get_path_end(node, connection_node)
                 new_connections[new_node] = new_distance
             node.connections = new_connections
 
 
-def longest_path(node: Node, end: None, visited: Optional[tuple[Node]] = None) -> [list[Node], int]:
+def longest_path(node: NodeWithDistance, end: None, visited: Optional[tuple[NodeWithDistance]] = None) -> [list[NodeWithDistance], int]:
     if visited is None:
         new_visited = (node, )
     else:
         new_visited = visited + (node,)
 
-    route_nodes: list[Node] = []
+    route_nodes: list[NodeWithDistance] = []
     route_len: int = 0
     for connection, dist in node.connections.items():
         if connection not in new_visited:

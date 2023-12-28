@@ -621,7 +621,15 @@ class Point3Cloud:
 
 class Node:
     def __init__(self):
-        self.connections: dict[Node, int] = {}
+        self.connections: set[Node] = set()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(connections={len(self.connections)})"
+
+
+class NodeWithDistance:
+    def __init__(self):
+        self.connections: dict[NodeWithDistance, int] = {}
 
     def __repr__(self):
         return f"{self.__class__.__name__}(connections={len(self.connections)})"
