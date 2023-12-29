@@ -622,9 +622,10 @@ class Point3Cloud:
 class Node:
     def __init__(self):
         self.connections: set[Node] = set()
+        self.value: Any = None
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(connections={len(self.connections)})"
+        return f"{self.__class__.__name__}(value={self.value}, connections={len(self.connections)})"
 
 
 class NodeWithDistance:
