@@ -316,7 +316,13 @@ class PointAgent(Point):
 
 
 class PointGrid:
-    def __init__(self, lines: Optional[Iterable[str]] = None, background=".", point_class: type[Point] = Point):
+    def __init__(
+            self,
+            lines: Optional[Iterable[str]] = None,
+            background=".",
+            point_class: type[Point] = Point,
+            values: list[list[str | int]] = None
+    ):
         self.points: set[point_class] = set()
         if lines is not None:
             base = LineGrid(lines, pad=background)
@@ -328,6 +334,16 @@ class PointGrid:
                         y=p[1]
                     )
                 )
+        elif values:
+            for y, line in enumerate(values):
+                for x, value in enumerate(line):
+                    self.points.add(
+                        point_class(
+                            value=value,
+                            x=x,
+                            y=y
+                        )
+                    )
 
         self.background = background
         for point in self.points:
@@ -435,6 +451,25 @@ class PointGrid:
             x_of_next_point = self.y_x_sorted[end - 1].x
             start = bisect.bisect_left(self.y_x_sorted, (y, x_of_next_point), key=lambda p: p.y_x)
             return self.y_x_sorted[start: end]
+
+    def get_region(self, corner_1: tuple[int, int], corner_2: tuple[int, int]) -> set[Point]:
+        x_min = min(corner_1[0], corner_2[0])
+        x_max = max(corner_1[0], corner_2[0])
+        y_min = min(corner_1[1], corner_2[1])
+        y_max = max(corner_1[1], corner_2[1])
+        x_points = set()
+        y_points = set()
+        for point in self.x_y_sorted:
+            if point.x > x_max:
+                break
+            elif point.x >= x_min:
+                x_points.add(point)
+        for point in self.y_x_sorted:
+            if point.y > y_max:
+                break
+            elif point.y >= y_min:
+                y_points.add(point)
+        return x_points.intersection(y_points)
 
     def __str__(self):
         grid = [[self.background for _ in range(self.min_x, self.max_x + 3)] for _ in range(self.min_y, self.max_y + 3)]
