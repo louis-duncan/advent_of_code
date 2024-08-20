@@ -4,6 +4,8 @@ from math import inf
 from pathlib import Path
 from typing import Union, Optional, Type, Iterator, Any, Generator, Iterable, Callable
 
+INPUT_PATH = "input.txt"
+TEST_INPUT_PATH = "test_input.txt"
 VALID_DIRECTIONS = ["N", "E", "S", "W", "U", "R", "D", "L", "0", "1", "2", "3", 0, 1, 2, 3]
 
 
