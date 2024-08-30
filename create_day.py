@@ -7,6 +7,17 @@ import requests
 import webbrowser
 
 
+def load_token():
+    try:
+        with open("session_token.txt", "r") as fh:
+            return fh.read().strip()
+    except FileNotFoundError:
+        token = input("Token file not found, enter session token: ").strip()
+        with open("session_token.txt", "w") as fh:
+            fh.write(token)
+        return token
+
+
 def main():
     today = datetime.date.today()
 
@@ -44,9 +55,7 @@ def main():
             out_stream.write(template_text)
 
     input_url = day_url + "/input"
-    with open("session_token.txt", "r") as fh:
-        token = fh.read().strip()
-
+    token = load_token()
     input_text = requests.get(input_url, cookies={'session': token}, verify=False).text
 
     day_input_path = day_dir / "input.txt"

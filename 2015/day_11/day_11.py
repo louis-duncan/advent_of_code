@@ -5,10 +5,10 @@ import pyperclip
 
 from aoc_utils import *
 
-
 """
 https://adventofcode.com/2015/day/11
 """
+
 
 class Validator:
     valid: bool
@@ -28,24 +28,12 @@ class ValidatorRun(Validator):
     def feed(self, c: str):
         if not self.valid:
             if ord(c) == self.last_char + 1:
-                self.run_len +=1
+                self.run_len += 1
                 if self.run_len == 3:
                     self.valid = True
             else:
                 self.run_len = 1
             self.last_char = ord(c)
-        return True
-
-
-class ValidatorBadLetters(Validator):
-    def __init__(self):
-        super().__init__()
-        self.valid = True
-
-    def feed(self, c: str) -> bool:
-        if c in "iol":
-            self.valid = False
-            return False
         return True
 
 
@@ -64,28 +52,35 @@ class ValidatorPairs(Validator):
         return True
 
 
-def part_1() -> Union[int, str]:
+def next_password(password: str) -> str:
     ord_a = ord("a")
     ord_z = ord("z")
 
     def increment_word_chars(_chars: list[int]) -> list[int]:
         _chars[-1] += 1
+        while chr(_chars[-1]) in "iol":
+            _chars[-1] += 1
 
         overflow = True
         pos = -1
         while overflow:
             overflow = False
-            if _chars[pos] >= ord_z:
+            if _chars[pos] > ord_z:
                 _chars[pos] = ord_a
                 _chars[pos - 1] += 1
+                while chr(_chars[pos - 1]) in "iol":
+                    _chars[pos - 1] += 1
                 pos -= 1
                 overflow = True
+                if pos <= -4:
+                    pass
         return _chars
 
-    word_chars: list[int] = [ord(c) for c in raw_input(INPUT_PATH).strip()]
+    word_chars: list[int] = [ord(c) for c in password]
+    increment_word_chars(word_chars)
 
     def is_valid(_word_chars: list[int]) -> bool:
-        validators: list[Validator] = [ValidatorRun(), ValidatorBadLetters(), ValidatorPairs()]
+        validators: list[Validator] = [ValidatorRun(), ValidatorPairs()]
         for char_int in _word_chars:
             char = chr(char_int)
             for validator in validators:
@@ -98,14 +93,19 @@ def part_1() -> Union[int, str]:
 
     while not is_valid(word_chars):
         word_chars = increment_word_chars(word_chars)
-        #print("".join([chr(wc) for wc in word_chars]))
 
-    return "".join([chr(wc) for wc in word_chars])
+    new = "".join([chr(wc) for wc in word_chars])
+    return new
 
+
+def part_1() -> Union[int, str]:
+    password = raw_input(INPUT_PATH).strip()
+    return next_password(password)
 
 
 def part_2() -> Union[int, str]:
-    ...
+    password = raw_input(INPUT_PATH).strip()
+    return next_password(next_password(password))
 
 
 if __name__ == "__main__":

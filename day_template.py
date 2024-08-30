@@ -9,6 +9,8 @@ from aoc_utils import *
 {DAY_LINK}
 """
 
+_INPUT_PATH = INPUT_PATH_TEST
+
 
 def part_1() -> Union[int, str]:
     ...
