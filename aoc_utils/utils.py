@@ -358,7 +358,9 @@ class PointGrid:
         self.max_x = 0
         self.min_y = 0
         self.max_y = 0
-        self._recalc_min_max()
+
+        if len(self.points):
+            self._recalc_min_max()
 
     @property
     def state_hash(self):
@@ -482,6 +484,10 @@ class PointGrid:
 
     def __repr__(self):
         return f"{self.__class__.__name__}(num_points={len(self.points)})"
+
+    def get_neighbours(self, x: int, y: int):
+        return self.get_region((x-1, y+1), (x+1, y-1))
+
 
 class AgentGrid(PointGrid):
     def __init__(self, lines: Iterator[str], background="."):
