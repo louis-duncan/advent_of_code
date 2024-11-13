@@ -2,7 +2,7 @@ import bisect
 import logging
 from math import inf
 from pathlib import Path
-from typing import Union, Optional, Type, Iterator, Any, Generator, Iterable, Callable
+from typing import Union, Optional, Type, Iterator, Any, Generator, Iterable, Callable, List
 
 INPUT_PATH = "input.txt"
 TEST_INPUT_PATH = "test_input.txt"
@@ -252,23 +252,35 @@ class Point:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(value={repr(self.value)}, x={self.x}, y={self.y})"
 
-    def get_neighbours(self, direction: Union[int, str]) -> list['Point']:
+    def get_neighbours(self, direction: Optional[Union[int, str, Union[List[int], List[str]]]] = None) -> list['Point']:
         if self.cloud is None:
             raise ValueError("Point does not have a cloud")
 
-        direction = check_direction(direction)
-
-        n_x, n_y = self.x_y
-        if direction == 0:
-            n_y -= 1
-        elif direction == 1:
-            n_x += 1
-        elif direction == 2:
-            n_y += 1
+        if direction is None:
+            directions = [0, 1, 2, 3, 4, 5, 6, 7]
+        elif isinstance(direction, (int, str)):
+            directions = [check_direction(direction)]
+        elif isinstance(direction, list):
+            directions = [check_direction(d) for d in direction]
         else:
-            n_x -= 1
+            raise ValueError(f"Unexpected type for argument 'direction': {direction.__class__.__name__}")
 
-        return self.cloud.get(n_x, n_y)
+        neighbours: List['Point'] = []
+        for d in directions:
+            n_x, n_y = self.x_y
+            if d == 0:
+                n_y -= 1
+            elif d == 1:
+                n_x += 1
+            elif d == 2:
+                n_y += 1
+            else:
+                n_x -= 1
+
+            neighbours += self.cloud.get(n_x, n_y)
+
+        return neighbours
+
 
 
 class PointAgent(Point):
@@ -480,7 +492,7 @@ class PointGrid:
         grid = [[self.background for _ in range(self.min_x, self.max_x + 3)] for _ in range(self.min_y, self.max_y + 3)]
         for point in self.points:
             grid[(point.y - self.min_y) + 1][(point.x - self.min_x) + 1] = point.value
-        return "\n".join(["".join(line) for line in grid])
+        return "\n".join(["".join(str(line)) for line in grid])
 
     def __repr__(self):
         return f"{self.__class__.__name__}(num_points={len(self.points)})"

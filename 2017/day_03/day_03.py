@@ -73,8 +73,6 @@ def part_2() -> Union[int, str]:
         grid.add(Point(total, x, y))
 
 
-
-
 if __name__ == "__main__":
     p1_start = time.time()
     part_1_answer = part_1()
