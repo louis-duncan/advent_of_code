@@ -19,7 +19,7 @@ def raw_input(input_path: Union[Path, str] = Path("test_input.txt")) -> str:
 def input_lines(
         input_path: Union[Path, str] = Path("test_input.txt"),
         convert_type: Optional[Type] = None
-) -> Generator[str, None, None]:
+) -> Generator[Any, None, None]:
     for line in raw_input(input_path).strip().split("\n"):
         if convert_type is None:
             yield line.strip()
