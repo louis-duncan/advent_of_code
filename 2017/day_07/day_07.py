@@ -1,5 +1,6 @@
 import dataclasses
 import re
+from statistics import mode
 import time
 
 import pyperclip
@@ -11,7 +12,7 @@ from aoc_utils import *
 https://adventofcode.com/2017/day/7
 """
 
-_INPUT_PATH = INPUT_PATH_TEST
+_INPUT_PATH = INPUT_PATH #_TEST
 
 
 @dataclasses.dataclass
@@ -21,10 +22,21 @@ class Process:
     children_names: list[str]
     children: list['Process']
     parent: Optional['Process'] = None
+    _level: int = None
+
+    @property
+    def level(self) -> int:
+        if self._level is None:
+            return self.parent.level + 1
+        else:
+            return self._level
 
     @property
     def total_weight(self) -> int:
         return self.weight + sum([c.total_weight for c in self.children])
+
+    def __repr__(self):
+        return f"Process(name={self.name}, weight={self.weight}, total_weight={self.total_weight}, level={self.level}, parent={self.parent.name if self.parent is not None else 'None'})"
 
 
 def load() -> dict[str, Process]:
@@ -56,6 +68,7 @@ def find_root(processes: dict[str, Process]) -> Process:
     p: Process = list(processes.values())[0]
     while True:
         if p.parent is None:
+            p._level = 0
             return p
         else:
             p = p.parent
@@ -68,12 +81,22 @@ def part_1() -> Union[int, str]:
 
 def part_2() -> Union[int, str]:
     processes = load()
-    process = find_root(processes)
+    root = find_root(processes)
 
-    done = False
-    while not done:
-        min_weight
+    highest_imbalance: Optional[Process] = root
 
+    for process in processes.values():
+        child_weights = [p.total_weight for p in process.children]
+        if not child_weights:
+            continue
+        if min(child_weights) != max(child_weights):
+            if process.level > highest_imbalance.level:
+                highest_imbalance = process
+
+    modal_weight = mode([p.total_weight for p in highest_imbalance.children])
+    for child in highest_imbalance.children:
+        if child.total_weight != modal_weight:
+            return child.weight - (child.total_weight - modal_weight)
 
 
 if __name__ == "__main__":
