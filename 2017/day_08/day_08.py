@@ -1,3 +1,4 @@
+import operator
 import time
 
 import pyperclip
@@ -5,19 +6,56 @@ import pyperclip
 from aoc_utils import *
 
 
+OPERATORS: dict[str, Callable] = {
+    "<": operator.lt,
+    "<=": operator.le,
+    ">": operator.gt,
+    ">=": operator.ge,
+    "==": operator.eq,
+    "!=": operator.ne,
+    "inc": operator.add,
+    "dec": operator.sub,
+}
+
+
 """
 https://adventofcode.com/2017/day/8
 """
 
-_INPUT_PATH = INPUT_PATH_TEST
+_INPUT_PATH = INPUT_PATH  # _TEST
 
 
 def part_1() -> Union[int, str]:
-    ...
+    registers: dict[str, int] = {}
+    for line in input_lines(_INPUT_PATH):
+        parts = line.strip().split(" ")
+        reg, op, v_str, _, q, condition_str, p_str = parts
+        v = int(v_str)
+        p = int(p_str)
+        condition = OPERATORS[condition_str]
+
+        if condition(registers.get(q, 0), p):
+            registers[reg] = OPERATORS[op](registers.get(reg, 0), v)
+
+    return max(registers.values())
 
 
 def part_2() -> Union[int, str]:
-    ...
+    registers: dict[str, int] = {}
+    max_value = 0
+    for line in input_lines(_INPUT_PATH):
+        parts = line.strip().split(" ")
+        reg, op, v_str, _, q, condition_str, p_str = parts
+        v = int(v_str)
+        p = int(p_str)
+        condition = OPERATORS[condition_str]
+
+        if condition(registers.get(q, 0), p):
+            registers[reg] = OPERATORS[op](registers.get(reg, 0), v)
+            if registers[reg] > max_value:
+                max_value = registers[reg]
+
+    return max_value
 
 
 if __name__ == "__main__":
