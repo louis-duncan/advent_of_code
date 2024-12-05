@@ -19,14 +19,13 @@ def same_sign(a, b):
 
 def is_safe(nums) -> tuple[bool, int]:
     test_diff = nums[0] - nums[1]
-    i = 0
     for i, (a, b) in enumerate(pairwise(nums)):
         diff = a - b
         if not same_sign(diff, test_diff):
             return False, i
         if not (1 <= abs(diff) <= 3):
             return False, i
-    return True, i
+    return True, 0
 
 
 def part_1() -> Union[int, str]:
