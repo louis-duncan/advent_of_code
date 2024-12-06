@@ -296,9 +296,9 @@ class PointAgent(Point):
 
         """Direction can be NESW, UDLR, FB, or 0123"""
         if direction == "F":
-            direction = self.value
+            direction = self.direction
         elif direction == "B":
-            direction = (self.value + 2) % 4
+            direction = (self.direction + 2) % 4
         else:
             direction = check_direction(direction)
 
@@ -327,7 +327,7 @@ class PointAgent(Point):
         else:
             raise ValueError(f"Tried to turn in an invalid direction '{direction}'")
 
-        self.value = (self.value + amount) % 4
+        self.direction = (self.direction + amount) % 4
 
 
 class PointGrid:
@@ -492,7 +492,7 @@ class PointGrid:
         grid = [[self.background for _ in range(self.min_x, self.max_x + 3)] for _ in range(self.min_y, self.max_y + 3)]
         for point in self.points:
             grid[(point.y - self.min_y) + 1][(point.x - self.min_x) + 1] = point.value
-        return "\n".join(["".join(str(line)) for line in grid])
+        return "\n".join(["".join([str(v) for v in line]) for line in grid])
 
     def __repr__(self):
         return f"{self.__class__.__name__}(num_points={len(self.points)})"
@@ -500,9 +500,16 @@ class PointGrid:
     def get_neighbours(self, x: int, y: int):
         return self.get_region((x-1, y+1), (x+1, y-1))
 
+    def find(self, value) -> Optional[Point]:
+        for point in self.points:
+            if point.value == value:
+                return point
+        else:
+            return None
+
 
 class AgentGrid(PointGrid):
-    def __init__(self, lines: Iterator[str], background="."):
+    def __init__(self, lines: Iterable[str], background="."):
         self.points: set[PointAgent] = set()
         self.x_y_sorted: list[PointAgent] = []
 
