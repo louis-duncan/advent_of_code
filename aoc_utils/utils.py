@@ -500,12 +500,12 @@ class PointGrid:
     def get_neighbours(self, x: int, y: int):
         return self.get_region((x-1, y+1), (x+1, y-1))
 
-    def find(self, value) -> Optional[Point]:
+    def find(self, value) -> list[Point]:
+        result = []
         for point in self.points:
             if point.value == value:
-                return point
-        else:
-            return None
+                result.append(point)
+        return result
 
 
 class AgentGrid(PointGrid):
