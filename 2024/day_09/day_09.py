@@ -81,14 +81,17 @@ def part_2() -> Union[int, str]:
     values = [int(c) for c in raw_input(_INPUT_PATH).strip()]
     files: list[File] = []
     spaces: list[Space] = []
+    pos = 0
     values.append(0)
     for file_num, i in enumerate(range(0, len(values), 2)):
         file_size = values[i]
         space_size = values[i + 1]
         if file_size > 0:
-            files.append(File(i, file_size, file_num))
+            files.append(File(pos, file_size, file_num))
+            pos += file_size
         if space_size > 0:
-            spaces.append(Space(i, space_size))
+            spaces.append(Space(pos, space_size))
+            pos += space_size
 
     for file in list(reversed(files)):
         for space in spaces:
