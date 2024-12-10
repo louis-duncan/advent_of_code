@@ -12,7 +12,7 @@ from aoc_utils import *
 https://adventofcode.com/2024/day/9
 """
 
-_INPUT_PATH = INPUT_PATH  # _TEST
+_INPUT_PATH = INPUT_PATH_TEST
 
 
 def get_range_sum(a: int, b: int) -> int:
@@ -67,67 +67,59 @@ def part_1() -> Union[int, str]:
 
 @dataclasses.dataclass
 class File:
-    id: int
+    pos: int
     size: int
-    _index: int
+    id: int
 
 @dataclasses.dataclass
 class Space:
+    pos: int
     size: int
-    _index: int
 
 
 def part_2() -> Union[int, str]:
     values = [int(c) for c in raw_input(_INPUT_PATH).strip()]
-    block_map: list[Union[File, Space]] = []
+    files: list[File] = []
+    spaces: list[Space] = []
     values.append(0)
-    for block_num, i in enumerate(range(0, len(values), 2)):
-        block_size = values[i]
-        space_size = values[i+1]
-        if block_size > 0:
-            block_map.append(File(block_num, block_size, block_num))
+    for file_num, i in enumerate(range(0, len(values), 2)):
+        file_size = values[i]
+        space_size = values[i + 1]
+        if file_size > 0:
+            files.append(File(i, file_size, file_num))
         if space_size > 0:
-            block_map.append(Space(space_size, block_num))
+            spaces.append(Space(i, space_size))
 
-    file_to_move: File
-    space_to_fill: Space
-    biggest_space = max((b.size for b in block_map if isinstance(b, Space)))
-    for file_to_move in [b for b in reversed(block_map) if isinstance(b, File)]:
-        if file_to_move.size > biggest_space:
-            print("skip")
-            continue
-        i = block_map.index(file_to_move)
-        for space_to_fill in (b for b in block_map if isinstance(b, Space)):
-            j = block_map.index(space_to_fill)
-            if j > i:
-                break
-            if space_to_fill.size >= file_to_move.size:
-                block_map.remove(file_to_move)
-                block_map.insert(i, Space(file_to_move.size, _index=random.randint(10000, 99999)))
-                block_map.insert(j, file_to_move)
-                space_to_fill.size -= file_to_move.size
-                if space_to_fill.size == 0:
-                    block_map.remove(space_to_fill)
-                biggest_space = 0
-                for k in range(len(block_map)):
-                    if k >= i:
-                        break
-                    elif isinstance(block_map[k], Space) and block_map[k].size > biggest_space:
-                        biggest_space = block_map[k].size
+    for file in list(reversed(files)):
+        for space in spaces:
+            if space.size >= file.size:
+                original_pos = file.pos
+                file.pos = space.pos
+                space.size -= file.size
+
+                for i in range(len(spaces)):
+                    assert spaces[i].pos != original_pos
+                    if spaces[i].pos > original_pos:
+                        spaces.insert(i, Space(original_pos, file.size))
+                    break
+                else:
+                    spaces.append(Space(original_pos, file.size))
+
+                if space.size >= 0:
+                    space.pos = space.pos + file.size
+                else:
+                    spaces.remove(space)
                 break
 
     disk_hash = 0
     pos = 0
-    for block in block_map:
+    for block in sorted(files + spaces, key=lambda b: b.pos):
         if isinstance(block, File):
             disk_hash += get_range_sum(pos, pos + block.size - 1) * block.id
 
         pos += block.size
 
     return disk_hash
-
-
-
 
 
 if __name__ == "__main__":
