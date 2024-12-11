@@ -12,7 +12,7 @@ from aoc_utils import *
 https://adventofcode.com/2024/day/9
 """
 
-_INPUT_PATH = INPUT_PATH_TEST
+_INPUT_PATH = INPUT_PATH  # _TEST
 
 
 def get_range_sum(a: int, b: int) -> int:
@@ -95,7 +95,9 @@ def part_2() -> Union[int, str]:
 
     for file in list(reversed(files)):
         for space in spaces:
-            if space.size >= file.size:
+            if space.pos > file.pos:
+                break
+            elif space.size >= file.size:
                 original_pos = file.pos
                 file.pos = space.pos
                 space.size -= file.size
@@ -108,7 +110,7 @@ def part_2() -> Union[int, str]:
                 else:
                     spaces.append(Space(original_pos, file.size))
 
-                if space.size >= 0:
+                if space.size > 0:
                     space.pos = space.pos + file.size
                 else:
                     spaces.remove(space)
