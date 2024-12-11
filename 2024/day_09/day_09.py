@@ -104,7 +104,7 @@ def part_2() -> Union[int, str]:
                     assert spaces[i].pos != original_pos
                     if spaces[i].pos > original_pos:
                         spaces.insert(i, Space(original_pos, file.size))
-                    break
+                        break
                 else:
                     spaces.append(Space(original_pos, file.size))
 
