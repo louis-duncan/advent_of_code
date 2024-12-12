@@ -7,7 +7,6 @@ from typing import Union, Optional, Type, Iterator, Any, Generator, Iterable, Ca
 INPUT_PATH = "input.txt"
 TEST_INPUT_PATH = "test_input.txt"
 INPUT_PATH_TEST = TEST_INPUT_PATH
-VALID_DIRECTIONS = ["N", "E", "S", "W", "U", "R", "D", "L", "0", "1", "2", "3", 0, 1, 2, 3]
 
 
 def raw_input(input_path: Union[Path, str] = Path("test_input.txt")) -> str:
@@ -185,12 +184,14 @@ class LineGrid:
         direction = check_direction(direction)
         if direction == 0:
             y -= 1
-        elif direction == 1:
-            x += 1
         elif direction == 2:
+            x += 1
+        elif direction == 4:
             y += 1
-        else:
+        elif direction == 6:
             x -= 1
+        else:
+            raise ValueError("Unsupported direction")
         return x, y
 
     def get_neighbour(
@@ -252,6 +253,9 @@ class Point:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(value={repr(self.value)}, x={self.x}, y={self.y})"
 
+    def __bool__(self):
+        return True
+
     def get_neighbours(self, direction: Optional[Union[int, str, Union[List[int], List[str]]]] = None) -> list['Point']:
         if self.cloud is None:
             raise ValueError("Point does not have a cloud")
@@ -268,15 +272,14 @@ class Point:
         neighbours: List['Point'] = []
         for d in directions:
             n_x, n_y = self.x_y
-            if d == 0:
-                n_y -= 1
-            elif d == 1:
+            if d in (1, 2, 3):
                 n_x += 1
-            elif d == 2:
-                n_y += 1
-            else:
+            if d in (5, 6, 7):
                 n_x -= 1
-
+            if d in (3, 4, 5):
+                n_y += 1
+            if d in (7, 0, 1):
+                n_y -= 1
             neighbours += self.cloud.get(n_x, n_y)
 
         return neighbours
@@ -298,20 +301,21 @@ class PointAgent(Point):
         if direction == "F":
             direction = self.direction
         elif direction == "B":
-            direction = (self.direction + 2) % 4
+            direction = (self.direction + 4) % 4
         else:
             direction = check_direction(direction)
 
-        if direction == 0:
-            self.y -= distance
-        elif direction == 1:
-            self.x += distance
-        elif direction == 2:
-            self.y += distance
-        elif direction == 3:
-            self.x -= distance
-        else:
-            raise ValueError(f"Tried to move in an invalid direction '{direction}'")
+        d_x, d_y = 0, 0
+        if direction in (1, 2, 3):
+            d_x += 1
+        if direction in (5, 6, 7):
+            d_x -= 1
+        if direction in (3, 4, 5):
+            d_y += 1
+        if direction in (7, 0, 1):
+            d_y -= 1
+        self.x += d_x
+        self.y += d_y
 
         if cloud is not None:
             cloud.add(self)
@@ -396,6 +400,8 @@ class PointGrid:
                     p.y += space * (scale - 1)
 
     def _recalc_min_max(self) -> None:
+        if len(self.points) == 0:
+            return
 
         self.min_x = self.x_y_sorted[0].x
         self.max_x = self.x_y_sorted[-1].x
@@ -447,7 +453,7 @@ class PointGrid:
             start = bisect.bisect_left(self.x_y_sorted, (x, y_of_next_point), key=lambda p: p.x_y)
             return self.x_y_sorted[start: end]
         # E
-        elif direction == 1:
+        elif direction == 2:
             start = bisect.bisect_right(self.y_x_sorted, (y, x), key=lambda p: p.y_x)
             if start >= len(self.y_x_sorted):
                 return []
@@ -455,7 +461,7 @@ class PointGrid:
             end = bisect.bisect_right(self.y_x_sorted, (y, x_of_next_point), key=lambda p: p.y_x)
             return self.y_x_sorted[start: end]
         # S
-        elif direction == 2:
+        elif direction == 4:
             start = bisect.bisect_right(self.x_y_sorted, (x, y), key=lambda p: p.x_y)
             if start >= len(self.x_y_sorted):
                 return []
@@ -463,11 +469,13 @@ class PointGrid:
             end = bisect.bisect_right(self.x_y_sorted, (x, y_of_next_point), key=lambda p: p.x_y)
             return self.x_y_sorted[start: end]
         # W
-        else:
+        elif direction == 6:
             end = bisect.bisect_left(self.y_x_sorted, (y, x), key=lambda p: p.y_x)
             x_of_next_point = self.y_x_sorted[end - 1].x
             start = bisect.bisect_left(self.y_x_sorted, (y, x_of_next_point), key=lambda p: p.y_x)
             return self.y_x_sorted[start: end]
+        else:
+            raise ValueError("Unsupported direction")
 
     def get_region(self, corner_1: tuple[int, int], corner_2: tuple[int, int]) -> set[Point]:
         x_min = min(corner_1[0], corner_2[0])
@@ -721,15 +729,16 @@ def check_direction(direction: Union[str, int]) -> int:
     """
     raises: ValueError if direction is not valid.
     """
-    if isinstance(direction, int) and 0 <= direction <= 3:
-        return direction
-    else:
-        try:
-            return VALID_DIRECTIONS.index(direction) % 4
-        except IndexError:
-            pass
-
-    raise ValueError(f"Direction '{direction}' is not valid")
+    try:
+        if isinstance(direction, int):
+            if 0 <= direction <= 7:
+                return direction
+            else:
+                raise ValueError()
+        else:
+            return ("N", "NE", "E", "SE", "S", "SW", "W", "NW").index(direction)
+    except Exception as e:
+        raise ValueError(f"Direction '{direction}' is not valid") from e
 
 
 def get_direction(coord_1: tuple[int, int], coord_2: tuple[int, int]) -> int:
