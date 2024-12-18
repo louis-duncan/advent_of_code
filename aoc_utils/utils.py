@@ -285,7 +285,6 @@ class Point:
         return neighbours
 
 
-
 class PointAgent(Point):
     def __init__(self, value: str, x: int, y: int, facing: Union[str, int] = 0):
         super().__init__(value, x, y)
@@ -332,6 +331,22 @@ class PointAgent(Point):
             raise ValueError(f"Tried to turn in an invalid direction '{direction}'")
 
         self.direction = (self.direction + amount) % 4
+
+
+class VelocityPoint(Point):
+    def __init__(self, value: Union[str, int], x: int, y: int, vx: int, vy: int):
+        super().__init__(value, x, y)
+        self.vx, self.vy = vx, vy
+
+    def update(self):
+        cloud = self.cloud
+        if self.cloud is not None:
+            self.cloud.remove(self)
+        self.x += self.vx
+        self.y += self.vy
+        if cloud is not None:
+            cloud.add(self)
+
 
 
 class PointGrid:
