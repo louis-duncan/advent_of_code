@@ -122,9 +122,6 @@ def part_2() -> Union[int, str]:
     def get_output(_n: int) -> int:
         return ((((_n % 8) ^ 3) ^ 5) ^ (_n // (2 ** ((_n % 8) ^ 3)))) % 8
 
-    def get_next_a(_n: int) -> int:
-        return _n // 8
-
     nums = [int(n) for n in re.findall(r"\d+", raw_input(_INPUT_PATH), flags=re.MULTILINE)]
     program = nums[3:]
 
