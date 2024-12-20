@@ -27,7 +27,7 @@ def get_map(part="part_1") -> [dict[NodeWithDistance], NodeWithDistance, NodeWit
         here = line_grid.get(x, y)
         if here == "." or part == "part_2":
             for direction in range(4):
-                n_coord = line_grid.get_neighbor_coord(x, y, direction)
+                n_coord = line_grid.get_neighbour_coord(x, y, direction)
                 try:
                     n = line_grid.get(*n_coord)
                     if n != "#":
@@ -37,7 +37,7 @@ def get_map(part="part_1") -> [dict[NodeWithDistance], NodeWithDistance, NodeWit
         else:
             allowed_direction = "^>v<".find(here)
             try:
-                n_coord = line_grid.get_neighbor_coord(x, y, allowed_direction)
+                n_coord = line_grid.get_neighbour_coord(x, y, allowed_direction)
                 nodes[(x, y)].connections[nodes[n_coord]] = 1
             except ValueError:
                 pass

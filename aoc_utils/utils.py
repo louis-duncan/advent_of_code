@@ -1,8 +1,11 @@
 import bisect
+import dataclasses
+import functools
+import heapq
 import logging
 from math import inf
 from pathlib import Path
-from typing import Union, Optional, Type, Iterator, Any, Generator, Iterable, Callable, List
+from typing import Union, Optional, Type, Iterator, Any, Generator, Iterable, Callable, List, Set, MutableSequence
 
 INPUT_PATH = "input.txt"
 TEST_INPUT_PATH = "test_input.txt"
@@ -180,7 +183,7 @@ class LineGrid:
         return found
 
     @classmethod
-    def get_neighbor_coord(cls, x: int, y: int, direction: Union[int, str]) -> tuple[int, int]:
+    def get_neighbour_coord(cls, x: int, y: int, direction: Union[int, str]) -> tuple[int, int]:
         direction = check_direction(direction)
         if direction == 0:
             y -= 1
@@ -205,7 +208,7 @@ class LineGrid:
         returns: neighbour value, x, y
         """
         direction = check_direction(direction)
-        x, y = self.get_neighbor_coord(x, y, direction)
+        x, y = self.get_neighbour_coord(x, y, direction)
         return self.get(x, y, wrap), x, y
 
     def flood_fill(self, value: str, x: int, y: int) -> int:
@@ -220,7 +223,7 @@ class LineGrid:
                     count += 1
                     self.set(current[0], current[1], value)
                     for d in range(0, 4):
-                        queue.append(self.get_neighbor_coord(current[0], current[1], d))
+                        queue.append(self.get_neighbour_coord(current[0], current[1], d))
             except ValueError:
                 pass
 
@@ -233,6 +236,52 @@ class LineGrid:
         for y in range(self.height):
             for x in range(self.width):
                 yield x, y
+
+    def get_shortest_path(
+            self,
+            start: tuple[int, int],
+            end: tuple[int, int],
+            passable_values: Set[Union[str, int]],
+    ) -> Optional[list[tuple[int, int]]]:
+        @dataclasses.dataclass(order=True)
+        class PrioritizedPoint:
+            priority: int
+            item: tuple[int, int] = dataclasses.field(compare=False)
+
+        h = functools.partial(manhattan_distance, p2=end)
+
+        open_set: List[PrioritizedPoint] = []
+        heapq.heapify(open_set)
+        heapq.heappush(open_set, PrioritizedPoint(0, start))
+        came_from: dict[tuple[int, int], tuple[int, int]] = {}
+        g_score: dict[tuple[int, int], int] = {
+            start: 0
+        }
+        f_score: dict[tuple[int, int], int] = {
+            start: h(start)
+        }
+        while open_set:
+            current: tuple[int, int] = heapq.heappop(open_set).item
+            if current == end:
+                return reconstruct_path(came_from, current)
+
+            for n in (self.get_neighbour_coord(*current, d) for d in (0, 2, 4, 6)):
+                if not self._pos_in_bounds(*n):
+                    continue
+                elif self.get(*n) not in passable_values:
+                    continue
+
+                # 1 here would be the edge weight between current and neighbour
+                tentative_g_score = g_score.get(current, inf) + 1
+                if tentative_g_score < g_score.get(n, inf):
+                    came_from[n] = current
+                    g_score[n] = tentative_g_score
+                    f_score[n] = tentative_g_score + h(n)
+                    if n not in open_set:
+                        heapq.heappush(open_set, PrioritizedPoint(f_score[n], n))
+
+        raise ValueError("Failed to find path")
+
 
 
 class Point:
@@ -346,7 +395,6 @@ class VelocityPoint(Point):
         self.y += self.vy
         if cloud is not None:
             cloud.add(self)
-
 
 
 class PointGrid:
@@ -510,6 +558,7 @@ class PointGrid:
             elif point.y >= y_min:
                 y_points.add(point)
         return x_points.intersection(y_points)
+
 
     def __str__(self):
         grid = [[self.background for _ in range(self.min_x, self.max_x + 3)] for _ in range(self.min_y, self.max_y + 3)]
@@ -765,3 +814,12 @@ def get_direction(coord_1: tuple[int, int], coord_2: tuple[int, int]) -> int:
         return 3
     elif coord_2[1] < coord_1[1]:
         return 0
+
+
+def reconstruct_path(came_from: dict[tuple[int, int], tuple[int, int]], end: tuple[int, int]) -> list[tuple[int, int]]:
+    path: list[tuple[int, int]] = [end]
+    current = end
+    while current in came_from:
+        path.insert(0, came_from[current])
+        current = came_from[current]
+    return path
