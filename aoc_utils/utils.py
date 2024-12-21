@@ -86,7 +86,7 @@ class LineGrid:
         self.width: int = len(self.lines[0])
         self.height: int = len(self.lines)
 
-    def _pos_in_bounds(self, x: int, y: int):
+    def is_pos_in_bounds(self, x: int, y: int) -> bool:
         if x < 0 or x >= self.width:
             return False
         elif y < 0 or y >= self.height:
@@ -95,7 +95,7 @@ class LineGrid:
             return True
 
     def _pos_check(self, x: int, y: int, wrap: int) -> [int, int]:
-        in_bounds = self._pos_in_bounds(x, y)
+        in_bounds = self.is_pos_in_bounds(x, y)
         if not in_bounds and not wrap:
             raise ValueError(f"Position {x}, {y} is out of bounds")
         elif not in_bounds and wrap:
@@ -266,7 +266,7 @@ class LineGrid:
                 return reconstruct_path(came_from, current)
 
             for n in (self.get_neighbour_coord(*current, d) for d in (0, 2, 4, 6)):
-                if not self._pos_in_bounds(*n):
+                if not self.is_pos_in_bounds(*n):
                     continue
                 elif self.get(*n) not in passable_values:
                     continue
