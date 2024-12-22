@@ -355,13 +355,13 @@ class PointAgent(Point):
 
         d_x, d_y = 0, 0
         if direction in (1, 2, 3):
-            d_x += 1
+            d_x += distance
         if direction in (5, 6, 7):
-            d_x -= 1
+            d_x -= distance
         if direction in (3, 4, 5):
-            d_y += 1
+            d_y += distance
         if direction in (7, 0, 1):
-            d_y -= 1
+            d_y -= distance
         self.x += d_x
         self.y += d_y
 
@@ -396,6 +396,14 @@ class VelocityPoint(Point):
         if cloud is not None:
             cloud.add(self)
 
+    def move_to(self, x, y):
+        cloud = self.cloud
+        if self.cloud is not None:
+            self.cloud.remove(self)
+        self.x = x
+        self.y = y
+        if cloud is not None:
+            cloud.add(self)
 
 class PointGrid:
     def __init__(
@@ -581,7 +589,7 @@ class PointGrid:
 
 
 class AgentGrid(PointGrid):
-    def __init__(self, lines: Iterable[str], background="."):
+    def __init__(self, lines: Optional[Iterable[str]], background="."):
         self.points: set[PointAgent] = set()
         self.x_y_sorted: list[PointAgent] = []
 
