@@ -17,7 +17,7 @@ def part_1() -> Union[int, str]:
     grid = LineGrid(input_lines(_INPUT_PATH))
     start_pos = grid.find("S")
     end_pos = grid.find("E")
-    
+    #grid.set(start_pos[0], start_pos[1] + 1, ".")
     path = grid.get_shortest_path(start_pos, end_pos, passable_values={"S", "E", "."})
 
     pretty(grid, path)
@@ -70,7 +70,7 @@ def pretty(grid: LineGrid, highlight_path: list[tuple[int, int]] = None):
             elif (x, y) in highlight_path:
                 col = tuple([int(c * 255) for c in colours[highlight_path.index((x, y))]])
                 image.putpixel((x, y), col)
-                pretty_text += "*"
+                pretty_text += " "
             elif v == "#":
                 image.putpixel((x, y), (0, 0, 0))
                 present_neighbours = []
