@@ -10,7 +10,7 @@ from aoc_utils import *
 https://adventofcode.com/2024/day/21
 """
 
-_INPUT_PATH = INPUT_PATH_TEST
+_INPUT_PATH = INPUT_PATH # _TEST
 
 KEYPAD_MAP = {
     "7": (0, 0),
@@ -34,7 +34,8 @@ DIRECTION_PAD_MAP = {
     ">": (2, 1)
 }
 
-robot_positions: list[tuple[int, int]] = [(2, 3), (0, 2), (0, 2), (0, 2)]
+KEYPAD_ORIGIN = (2, 3)
+DIRECTION_PAD_ORIGIN = (2, 0)
 
 
 def buttons_to_coords_keypad(target_buttons: str) -> list[tuple[int, int]]:
@@ -133,46 +134,48 @@ def part_1() -> Union[int, str]:
 
         keypad_coords = buttons_to_coords_keypad(line)
         new_moves = moves_keypad(
-            origin=robot_positions[0],
+            origin=KEYPAD_ORIGIN,
             target_coords=keypad_coords
         )
-        robot_positions[0] = keypad_coords[-1]
-        print(new_moves)
 
-        dir_pad_coords = buttons_to_coords_direction_pad(new_moves)
-        new_moves = moves_direction_pad(
-            origin=robot_positions[1],
-            target_coords=dir_pad_coords
-        )
-        robot_positions[1] = dir_pad_coords[-1]
-        print(new_moves)
+        num_pads = 2
 
-        dir_pad_coords = buttons_to_coords_direction_pad(new_moves)
-        new_moves = moves_direction_pad(
-            origin=robot_positions[2],
-            target_coords=dir_pad_coords
-        )
-        robot_positions[2] = dir_pad_coords[-1]
+        for _ in range(num_pads):
+            dir_pad_coords = buttons_to_coords_direction_pad(new_moves)
+            new_moves = moves_direction_pad(
+                origin=DIRECTION_PAD_ORIGIN,
+                target_coords=dir_pad_coords
+            )
 
-        dir_pad_coords = buttons_to_coords_direction_pad(new_moves)
-        new_moves = moves_direction_pad(
-            origin=robot_positions[3],
-            target_coords=dir_pad_coords
-        )
-        robot_positions[3] = dir_pad_coords[-1]
-
-        print(new_moves)
         result += len(new_moves) * int(re.findall(r"\d+", line)[0])
-        break
-
-
 
     return result
 
 
-
 def part_2() -> Union[int, str]:
-    ...
+    result = 0
+
+    for line in input_lines(_INPUT_PATH):
+        line = line.strip()
+
+        keypad_coords = buttons_to_coords_keypad(line)
+        new_moves = moves_keypad(
+            origin=KEYPAD_ORIGIN,
+            target_coords=keypad_coords
+        )
+
+        num_pads = 25
+
+        for _ in range(num_pads):
+            dir_pad_coords = buttons_to_coords_direction_pad(new_moves)
+            new_moves = moves_direction_pad(
+                origin=DIRECTION_PAD_ORIGIN,
+                target_coords=dir_pad_coords
+            )
+
+        result += len(new_moves) * int(re.findall(r"\d+", line)[0])
+
+    return result
 
 
 if __name__ == "__main__":

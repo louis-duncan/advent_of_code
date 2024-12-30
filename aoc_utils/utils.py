@@ -197,6 +197,20 @@ class LineGrid:
             raise ValueError("Unsupported direction")
         return x, y
 
+    """
+    def get_neighbour_coords(
+            self,
+            x: int, y: int,
+            directions: list[int],
+            in_bounds: bool=True
+    ) -> list[Optional[tuple[int, int]]]:
+        neighbours = []
+        for d in directions:
+
+
+        return neighbours
+    """
+
     def get_neighbour(
             self,
             x: int,
