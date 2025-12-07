@@ -1,6 +1,5 @@
 import dataclasses
 import time
-from multiprocessing.managers import Value
 from typing import Union
 
 import pyperclip
@@ -34,38 +33,30 @@ class Range:
     def __contains__(self, item: int) -> bool:
         return self.start <= item <= self.end
 
+    def __truediv__(self, other: 'Range') -> bool:
+        return self.start in other or other.start in self
+
+    def __len__(self) -> int:
+        return (self.end - self.start) + 1
+
 
 def part_1() -> Union[int, str]:
     ranges_raw, ingredients_raw = raw_input(_INPUT_PATH).split("\n\n")
     ranges_lines = ranges_raw.strip().split("\n")
     ingredients_lines = ingredients_raw.strip().split("\n")
 
-    ranges = [Range.from_line(l) for l in ranges_lines]
+    original_ranges = [Range.from_line(l) for l in ranges_lines]
     ingredients = [int(v) for v in ingredients_lines]
 
-    keep_going = True
-    while keep_going:
-        keep_going = False
-        to_merge: list[tuple[Range, Range]] = []
-        for i in range(len(ranges)):
-            for j in range(i + 1, len(ranges)):
-                if ranges[i].start in ranges[j] or ranges[j].start in ranges[i]:
-                    to_merge.append((ranges[i], ranges[j]))
-
-        if to_merge:
-            keep_going = True
-
-        for r1, r2 in to_merge:
-            try:
-                ranges.remove(r1)
-            except ValueError:
-                pass
-            try:
-                ranges.remove(r2)
-            except ValueError:
-                pass
-
-            ranges.append(r1 + r2)
+    ranges = []
+    for new_range in original_ranges:
+        for i, existing_range in enumerate(ranges):
+            if new_range / existing_range:
+                original_ranges.append(new_range + existing_range)
+                ranges.remove(existing_range)
+                break
+        else:
+            ranges.append(new_range)
 
     count = 0
     for ingredient in ingredients:
@@ -77,7 +68,26 @@ def part_1() -> Union[int, str]:
 
 
 def part_2() -> Union[int, str]:
-    ...
+    ranges_raw, _ = raw_input(_INPUT_PATH).split("\n\n")
+    ranges_lines = ranges_raw.strip().split("\n")
+
+    original_ranges = [Range.from_line(l) for l in ranges_lines]
+
+    ranges = []
+    for new_range in original_ranges:
+        for i, existing_range in enumerate(ranges):
+            if new_range / existing_range:
+                original_ranges.append(new_range + existing_range)
+                ranges.remove(existing_range)
+                break
+        else:
+            ranges.append(new_range)
+
+    total = 0
+    for r in ranges:
+        total = total + len(r)
+
+    return total
 
 
 if __name__ == "__main__":
