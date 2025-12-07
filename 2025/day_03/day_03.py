@@ -1,5 +1,6 @@
 import itertools
 import time
+from idlelib.help import copy_strip
 from typing import Union
 
 import pyperclip
@@ -32,27 +33,38 @@ def part_1() -> Union[int, str]:
 
     return jolts_sum
 
+"""
+def search_bank(consider: tuple[int, ...], against: tuple[int, ...]) -> tuple[int, ...] | None:
+    if len(against) > len(consider):
+        return tuple()
+
+    resp = tuple()
+    for i in range(len(consider)):
+"""
+
+def get_leftmost_biggest_index(consider: tuple[int, ...]) -> int:
+    n = max(consider)
+    return consider.index(n)
+
 
 def part_2() -> Union[int, str]:
     lines = au.input_lines(_INPUT_PATH)
 
     jolts_sum = 0
 
-    for i, bank in enumerate(lines):
-        print(i)
-        biggest_int = 0
-        biggest_str = "0"
-        for comb in itertools.combinations(bank, 12):
-            if comb[0] < biggest_str[0]:
-                continue
-            v = int("".join(comb))
-            if v > biggest_int:
-                biggest_int = v
-                biggest_str = str(v)
-            if biggest_int == 999999999999:
-                break
-
-        jolts_sum += biggest_int
+    for line in lines:
+        values = tuple(int(c) for c in line)
+        indexes = []
+        for i in range(12):
+            start = 0 if not indexes else indexes[-1] + 1
+            end = -12 + (i + 1)
+            consider = values[start: end if end else None]
+            indexes.append(
+                get_leftmost_biggest_index(
+                    consider
+                ) + start
+            )
+        jolts_sum += int("".join([str(values[j]) for j in indexes]))
 
     return jolts_sum
 
