@@ -1,15 +1,16 @@
 import time
+from typing import Union
 
 import pyperclip
 
-from aoc_utils import *
+import aoc_utils as au
 
 
 """
 {DAY_LINK}
 """
 
-_INPUT_PATH = INPUT_PATH_TEST
+_INPUT_PATH = au.INPUT_PATH_TEST
 
 
 def part_1() -> Union[int, str]:
