@@ -12,16 +12,42 @@ TEST_INPUT_PATH = "test_input.txt"
 INPUT_PATH_TEST = TEST_INPUT_PATH
 
 
-def raw_input(input_path: Union[Path, str] = Path("test_input.txt")) -> str:
+def raw_input(
+        input_path: Union[Path, str, None] = None,
+        test: Optional[bool] = None
+) -> str:
+    if input_path is None:
+        if test is None:
+            input_path = TEST_INPUT_PATH
+            logging.warning(f"Ambiguous input path, using {input_path}")
+        elif test is False:
+            input_path = INPUT_PATH
+        else:
+            input_path = TEST_INPUT_PATH
+    elif test is not None:
+        logging.warning(f"'test' flag used when explicit path given, using explicit path {input_path}")
+
     with open(input_path, "r") as fh:
         data = fh.read()
     return data
 
 
 def input_lines(
-        input_path: Union[Path, str] = Path("test_input.txt"),
-        convert_type: Optional[Type] = None
+        input_path: Union[Path, str, None] = None,
+        convert_type: Optional[Type] = None,
+        test: Optional[bool] = None
 ) -> Generator[Any, None, None]:
+    if input_path is None:
+        if test is None:
+            input_path = TEST_INPUT_PATH
+            logging.warning(f"Ambiguous input path, using {input_path}")
+        elif test is False:
+            input_path = INPUT_PATH
+        else:
+            input_path = TEST_INPUT_PATH
+    elif test is not None:
+        logging.warning(f"'test' flag used when explicit path given, using explicit path {input_path}")
+
     for line in raw_input(input_path).strip().split("\n"):
         if convert_type is None:
             yield line.strip()
@@ -30,10 +56,22 @@ def input_lines(
 
 
 def grouped_input_lines(
-        input_path: Union[Path, str] = Path("test_input.txt"),
-        convert_type: Optional[Type] = None
+        input_path: Union[Path, str, None] = None,
+        convert_type: Optional[Type] = None,
+        test: Optional[bool] = None
 ) -> Generator[list[str], None, None]:
     """Return groups of lines from files with \n separators"""
+    if input_path is None:
+        if test is None:
+            input_path = TEST_INPUT_PATH
+            logging.warning(f"Ambiguous input path, using {input_path}")
+        elif test is False:
+            input_path = INPUT_PATH
+        else:
+            input_path = TEST_INPUT_PATH
+    elif test is not None:
+        logging.warning(f"'test' flag used when explicit path given, using explicit path {input_path}")
+
     group: list[str] = []
     for line in input_lines(input_path, convert_type):
         if line == "":
@@ -46,10 +84,24 @@ def grouped_input_lines(
 
 
 class BasicGrid:
-    def __init__(self, width: int, height: int):
-        self.width = width
-        self.height = height
-        self.rows: list[list] = [[None for _ in range(width)] for _ in range(height)]
+    def __init__(
+            self,
+            width: Optional[int] = None,
+            height: Optional[int] = None,
+            data_rows: Optional[list[list[Any]]] = None,
+            default_value=None,
+    ):
+        if data_rows is None:
+            assert width is not None and height is not None
+            self.width = width
+            self.height = height
+            self.rows: list[list] = [[default_value for _ in range(width)] for _ in range(height)]
+        else:
+            self.rows = data_rows
+            self.width = max([len(row) for row in self.rows])
+            self.height = len(data_rows)
+            for row in self.rows:
+                row += [default_value] * (self.width - len(row))
 
     def get(self, x: int, y: int) -> Any:
         if x < 0 or y < 0:
@@ -66,6 +118,11 @@ class BasicGrid:
         for y in range(self.width):
             for x in range(self.height):
                 yield self.rows[y][x]
+
+    @property
+    def columns(self) -> Generator[list[Any], None, None]:
+        for c in range(self.width):
+            yield [row[c] for row in self.rows]
 
 
 class LineGrid:
@@ -296,6 +353,10 @@ class LineGrid:
 
         raise ValueError("Failed to find path")
 
+    def replace_all(self, old: Any, new: Any):
+        for x, y in self.iterate_x_y():
+            if self.get(x, y) == old:
+                self.set(x, y, new)
 
 
 class Point:
