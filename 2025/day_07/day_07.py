@@ -33,31 +33,32 @@ def part_1() -> Union[int, str]:
 
     return count
 
+
 def part_2() -> Union[int, str]:
     grid = au.LineGrid(au.input_lines(test=False))
     grid.replace_all("S", 1)
     grid.replace_all(".", 0)
 
-    for y in range(grid.height):
+    for x, y in grid.iterate_x_y():
         if y == 0:
             continue
-        for x in range(grid.width):
-            if grid.get(x, y) == "^":
-                val = grid.get(x, y - 1)
-                if not val:
-                    continue
-                new_left = grid.get(x-1, y) + val
-                new_right = grid.get(x+1, y) + val
-                grid.set(x-1, y, new_left)
-                grid.set(x+1, y, new_right)
-            else:
-                val = grid.get(x, y - 1)
-                if not val:
-                    continue
-                if val == "^":
-                    continue
-                new_val = grid.get(x, y) + val
-                grid.set(x, y, new_val)
+
+        if grid.get(x, y) == "^":
+            val = grid.get(x, y - 1)
+            if not val:
+                continue
+            new_left = grid.get(x-1, y) + val
+            new_right = grid.get(x+1, y) + val
+            grid.set(x-1, y, new_left)
+            grid.set(x+1, y, new_right)
+        else:
+            val = grid.get(x, y - 1)
+            if not val:
+                continue
+            if val == "^":
+                continue
+            new_val = grid.get(x, y) + val
+            grid.set(x, y, new_val)
 
     return sum(grid.get_row(-1))
 
