@@ -3,13 +3,16 @@ import dataclasses
 import functools
 import heapq
 import logging
+import math
 from math import inf
 from pathlib import Path
-from typing import Union, Optional, Type, Iterator, Any, Generator, Iterable, Callable, List, Set, MutableSequence
+from typing import Union, Optional, Type, Any, Generator, Iterable, Callable, List, Set
 
 INPUT_PATH = "input.txt"
 TEST_INPUT_PATH = "test_input.txt"
 INPUT_PATH_TEST = TEST_INPUT_PATH
+
+t_num = Union[int, float]
 
 
 def raw_input(
@@ -151,7 +154,7 @@ class LineGrid:
         else:
             return True
 
-    def _pos_check(self, x: int, y: int, wrap: int) -> [int, int]:
+    def _pos_check(self, x: int, y: int, wrap: int) -> tuple[int, int]:
         in_bounds = self.is_pos_in_bounds(x, y)
         if not in_bounds and not wrap:
             raise ValueError(f"Position {x}, {y} is out of bounds")
@@ -359,20 +362,54 @@ class LineGrid:
                 self.set(x, y, new)
 
 
+@dataclasses.dataclass
+class Vector:
+    dx: t_num
+    dy: t_num
+
+    def __add__(self, other: 'Vector') -> 'Vector':
+        return Vector(self.dx + other.dx, self.dy + other.dy)
+
+    def __sub__(self, other: 'Vector') -> 'Vector':
+        return Vector(self.dx - other.dx, self.dy - other.dy)
+
+
+@dataclasses.dataclass
+class Pos:
+    x: t_num
+    y: t_num
+
+
 class Point:
-    def __init__(self, value: Union[str, int], x: int, y: int):
+    def __init__(self, value: Union[str, int], x: t_num, y: t_num):
+        super().__init__(x, y)
         self.value = value
-        self.x = x
-        self.y = y
+        self.pos = Pos(x, y)
         self.cloud: Optional['PointGrid'] = None
 
     @property
-    def x_y(self) -> tuple[int, int]:
-        return self.x, self.y
+    def x(self) -> t_num:
+        return self.pos.x
+
+    @x.setter
+    def x(self, value: t_num):
+        self.pos.x = value
 
     @property
-    def y_x(self) -> tuple[int, int]:
-        return self.y, self.x
+    def y(self) -> t_num:
+        return self.pos.y
+
+    @y.setter
+    def y(self, value: t_num):
+        self.pos.y = value
+
+    @property
+    def x_y(self) -> tuple[t_num, t_num]:
+        return self.pos.x, self.pos.y
+
+    @property
+    def y_x(self) -> tuple[t_num, t_num]:
+        return self.pos.y, self.pos.x
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(value={repr(self.value)}, x={self.x}, y={self.y})"
@@ -407,6 +444,25 @@ class Point:
             neighbours += self.cloud.get(n_x, n_y)
 
         return neighbours
+
+    def __sub__(self, other: 'Point') -> Vector:
+        """Get vector from self towards other"""
+        return Vector(
+            dx = other.x - self.x,
+            dy = other.y - self.y
+        )
+
+    def __truediv__(self, other: 'Point') -> float:
+        """Absolute euclidian distance between points."""
+        vect = self - other
+        return math.sqrt(vect.dx ** 2 + vect.dy ** 2)
+
+    def __add__(self, other: Vector) -> 'Point':
+        return Point(
+            value=self.value,
+            x=self.x + other.dx,
+            y=self.y + other.dy
+        )
 
 
 class PointAgent(Point):
@@ -480,6 +536,7 @@ class VelocityPoint(Point):
         if cloud is not None:
             cloud.add(self)
 
+
 class PointGrid:
     def __init__(
             self,
@@ -535,7 +592,7 @@ class PointGrid:
             space = dist - 1
             if space > 0:
                 for p in x_ordered[i:]:
-                    p.x += space * (scale - 1)
+                    p.pos.x += space * (scale - 1)
 
         y_ordered: list[Point] = list(sorted(self.points, key=lambda p_: p_.y))
         for j in range(1, len(y_ordered)):
@@ -672,12 +729,23 @@ class AgentGrid(PointGrid):
         super().__init__(lines, background, point_class=PointAgent)
 
 
+@dataclasses.dataclass
+class Vector3:
+    dx: t_num
+    dy: t_num
+    dz: t_num
+
+    @property
+    def tup(self) -> tuple[t_num, t_num, t_num]:
+        return self.dx, self.dy, self.dz
+
+
 class Point3:
     def __init__(
             self,
-            x: int,
-            y: int,
-            z:int,
+            x: t_num,
+            y: t_num,
+            z:t_num,
             cloud: Optional['Point3Cloud'] = None,
             group: Optional['Point3Group'] = None
     ):
@@ -687,10 +755,42 @@ class Point3:
         self.cloud = cloud
         self.group = group
 
+        if cloud is not None:
+            cloud.add_point(self)
+
+    def __hash__(self):
+        return hash(self.pos)
+
     def __repr__(self):
         return f"{self.__class__.__name__}({self.x}, {self.y}, {self.z})"
 
-    def move(self, dx: int, dy: int, dz: int, skip_cloud = False):
+    def __sub__(self, other: 'Point3') -> Vector3:
+        """Get Vector3 from self to other."""
+        return Vector3(
+            other.x - self.x,
+            other.y - self.y,
+            other.z - self.z
+        )
+
+    def __truediv__(self, other: 'Point3') -> float:
+        """Abs euclidian distance between points."""
+        vect = self - other
+        return math.sqrt(vect.dx ** 2 + vect.dy ** 2 + vect.dz ** 2)
+
+    def move(
+            self,
+            dx: Optional[t_num] = None,
+            dy: Optional[t_num] = None,
+            dz: Optional[t_num] = None,
+            vect: Optional[Vector3] = None,
+            skip_cloud = False
+    ):
+        if vect:
+            dx, dy, dz = vect.tup
+        else:
+            if None in (dx, dy, dz):
+                raise ValueError("Coords or vector required")
+
         if self.cloud is None or skip_cloud:
             self.x += dx
             self.y += dy
@@ -699,7 +799,7 @@ class Point3:
             self.cloud.move_point(self, dx, dy, dz)
 
     @property
-    def pos(self) -> [int, int, int]:
+    def pos(self) -> tuple[t_num, t_num, t_num]:
         return self.x, self.y, self.z
 
     def get_neighbour(self, direction: tuple[int, int, int]) -> Optional['Point3']:
@@ -895,7 +995,7 @@ def get_direction(coord_1: tuple[int, int], coord_2: tuple[int, int]) -> int:
         return 2
     elif coord_2[0] < coord_1[0]:
         return 3
-    elif coord_2[1] < coord_1[1]:
+    else:
         return 0
 
 
