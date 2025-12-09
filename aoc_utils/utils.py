@@ -382,7 +382,6 @@ class Pos:
 
 class Point:
     def __init__(self, value: Union[str, int], x: t_num, y: t_num):
-        super().__init__(x, y)
         self.value = value
         self.pos = Pos(x, y)
         self.cloud: Optional['PointGrid'] = None
