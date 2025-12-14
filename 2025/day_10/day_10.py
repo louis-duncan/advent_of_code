@@ -28,7 +28,6 @@ def part_1() -> Union[int, str]:
     for line in au.input_lines(test=False):
         target_pattern = re.match(r"\[([.#]+)]", line).groups()[0]
         state = int(target_pattern.replace("#", "1").replace(".", "0"), 2)
-        num_lights = len(target_pattern)
         buttons: list[int] = []
         for buttons_str in re.findall(r"(\(\d(?:,\d+)*\))", line):
             values: tuple[int, ...] = eval(buttons_str)
@@ -59,7 +58,6 @@ def part_1() -> Union[int, str]:
                         seen_states.add(new_state)
                         new_states.add(new_state)
             current_states = new_states
-
         total += depth
 
     return total
@@ -68,40 +66,35 @@ def part_1() -> Union[int, str]:
 def part_2() -> Union[int, str]:
     total = 0
     for line in au.input_lines(test=False):
-        target_pattern = re.match(r"\[([.#]+)]", line).groups()[0]
-        state = int(target_pattern.replace("#", "1").replace(".", "0"), 2)
-        num_lights = len(target_pattern)
-        buttons: list[int] = []
+        state = eval("(" + re.search(r"\{(.*)}", line).groups()[0] + ")")
+        buttons: list[list[int]] = []
         for buttons_str in re.findall(r"(\(\d(?:,\d+)*\))", line):
             values: tuple[int, ...] = eval(buttons_str)
             if isinstance(values, int):
                 values = (values,)
-            button_val_str = ""
-            for i in range(len(target_pattern)):
-                n = "1" if i in values else "0"
-                button_val_str += n
-            buttons.append(int(button_val_str, 2))
+            new = []
+            for i in range(len(state)):
+                new.append(1 if i in values else 0)
+            buttons.append(new)
 
-        seen_states: set[int] = set()
-        current_states: set[int] = {state}
+        seen_states: set[tuple[int, ...]] = set()
+        current_states: set[tuple[int, ...]] = {state}
         depth = 0
         done = False
-        prev = -1
         while not done:
             depth += 1
-            new_states = set()
+            new_states: set[tuple[int, ...]] = set()
             for state in current_states:
                 for button in buttons:
-                    if button == prev:
-                        continue
-                    new_state = state ^ button
-                    if new_state == 0:
+                    new_state = tuple(x - y for x, y in zip(state, button))
+                    if max(new_state) == 0:
                         done = True
-                    if new_state not in seen_states:
+                    if new_state not in seen_states and min(new_state) >= 0:
                         seen_states.add(new_state)
                         new_states.add(new_state)
             current_states = new_states
 
+        print(depth)
         total += depth
 
     return total
